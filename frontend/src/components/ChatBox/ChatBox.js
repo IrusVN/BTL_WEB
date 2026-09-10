@@ -5,12 +5,12 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faCommentDots, faTimes, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
 import axios from 'axios';
+import { API_URL } from '../../services/authService.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { showToast } from '../Toast/index.js';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const cx = classNames.bind(styles);
-const API_URL = (typeof process !== 'undefined' && process.env && process.env.REACT_APP_API_URL) || 'https://backend-ezhu.onrender.com/api';
 
 const ChatBox = () => {
     const [showChat, setShowChat] = useState(false);

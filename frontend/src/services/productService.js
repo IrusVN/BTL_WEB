@@ -1,10 +1,10 @@
 import axios from 'axios';
 import { API_URL } from './authService.js';
 
-// Lấy tất cả sản phẩm
-export const getProducts = async () => {
+// Lấy tất cả sản phẩm (có thể truyền tham số lọc brand, giới hạn số lượng)
+export const getProducts = async (params = {}) => {
     try {
-        const response = await axios.get(`${API_URL}/products/products`);
+        const response = await axios.get(`${API_URL}/products/products`, { params });
         return response.data;
     } catch (error) {
         throw error.response ? error.response.data : new Error('Lỗi kết nối server');

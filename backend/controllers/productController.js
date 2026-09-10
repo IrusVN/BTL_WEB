@@ -53,10 +53,26 @@ exports.createProduct = async (req, res) => {
     }
 };
 
-// Lấy tất cả sản phẩm
+// Lấy tất cả sản phẩm (hỗ trợ lọc theo brand và giới hạn số lượng qua query params)
 exports.getProducts = async (req, res) => {
     try {
-        const products = await Product.find();
+        const { brand, limit } = req.query;
+
+        const filter = {};
+        if (brand) {
+            // Escape ký tự đặc biệt để tránh regex injection
+            const escapedBrand = brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+            filter.brand = new RegExp(`^\\s*${escapedBrand}\\s*$`, 'i');
+        }
+
+        let query = Product.find(filter);
+
+        const parsedLimit = parseInt(limit, 10);
+        if (parsedLimit > 0) {
+            query = query.limit(parsedLimit);
+        }
+
+        const products = await query;
 
         res.status(200).json({
             success: true,

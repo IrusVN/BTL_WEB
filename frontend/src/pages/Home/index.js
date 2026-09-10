@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
 import classNames from 'classnames/bind';
 import { useNavigate, Link } from 'react-router-dom';
 import * as styles from './Home.module.scss';
 import { useSlider } from './home.js';
 import ProductItem from '../../components/ProductItem/index.js';
-import { API_URL } from '../../services/authService.js';
+import { getProducts } from '../../services/productService.js';
 import { showToast } from '../../components/Toast/index.js';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -57,24 +56,25 @@ function Home() {
     const diorProductsRef = useRef(null);
 
     useEffect(() => {
+        // Số sản phẩm hiển thị tối đa mỗi section
+        const MAX_PRODUCTS = 8;
+
         const fetchProducts = async () => {
             try {
-                const response = await axios.get(`${API_URL}/products/products`);
-                if (response.data.success) {
-                    setProducts(response.data.products);
-                    const nikeProds = response.data.products.filter(product => 
-                        product.brand && product.brand.toLowerCase() === 'nike'
-                    );
-                    const gucciProds = response.data.products.filter(product => 
-                        product.brand && product.brand.toLowerCase() === 'gucci'
-                    );
-                    const diorProds = response.data.products.filter(product => 
-                        product.brand && product.brand.toLowerCase() === 'dior'
-                    );
-                    setNikeProducts(nikeProds);
-                    setGucciProducts(gucciProds);
-                    setDiorProducts(diorProds);
-                }
+                // Gọi song song 4 request: sản phẩm nổi bật + 3 brand, mỗi request
+                // chỉ lấy đúng số sản phẩm cần hiển thị thay vì fetch cả catalog
+                const [featuredRes, nikeRes, gucciRes, diorRes] = await Promise.all([
+                    getProducts({ limit: MAX_PRODUCTS }),
+                    getProducts({ brand: 'Nike', limit: MAX_PRODUCTS }),
+                    getProducts({ brand: 'Gucci', limit: MAX_PRODUCTS }),
+                    getProducts({ brand: 'Dior', limit: MAX_PRODUCTS })
+                ]);
+
+                if (featuredRes.success) setProducts(featuredRes.products);
+                if (nikeRes.success) setNikeProducts(nikeRes.products);
+                if (gucciRes.success) setGucciProducts(gucciRes.products);
+                if (diorRes.success) setDiorProducts(diorRes.products);
+
                 setLoading(false);
             } catch (error) {
                 console.error('Lỗi khi lấy sản phẩm:', error);

@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+
+# Biến môi trường / secrets — không commit
+.env
+.env.*
+!.env.example
+
+# Build output
+build/
+dist/
+
+# Khác
+.DS_Store
+*.log
+node_modules
