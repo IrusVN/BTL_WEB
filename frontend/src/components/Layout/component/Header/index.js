@@ -6,43 +6,44 @@ import logo_rmbg from '../../../../img/logo-rmbg.png';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import { useAuth } from '../../../../context/AuthContext.js';
 import BadgeCart from '../../../BadgeCart/index.js';
+import ThemeToggle from '../../../ThemeToggle/index.js';
 import { showToast } from '../../../Toast/index.js';
+import { useProductSuggestions } from '../../../../hooks/useProductSuggestions.js';
 
 const cx = classNames.bind(styles);
+
+const SEARCH_SUGGESTIONS = ['Nike', 'Gucci', 'Dior', 'Balenciaga', 'Adidas'];
+
+const formatSuggestionPrice = (price) =>
+    new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
 
 function Header() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
-    
-    // State cho thanh tìm kiếm
+
     const [showSearch, setShowSearch] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
-    // State cho mobile menu
+    const { suggestions } = useProductSuggestions(showSearch || showMobileSearch ? searchTerm : '');
     const [showMobileMenu, setShowMobileMenu] = useState(false);
     const [showMobileSearch, setShowMobileSearch] = useState(false);
-    // State cho mobile dropdowns
     const [activeMobileDropdown, setActiveMobileDropdown] = useState(null);
     
     const mobileMenuRef = useRef(null);
     const mobileSearchRef = useRef(null);
     const hamburgerIconRef = useRef(null);
     
-    // Thêm state cho sticky header
     const [isHeaderSticky, setIsHeaderSticky] = useState(false);
     
-    // Hàm toggle mobile menu - sử dụng useCallback để tránh tạo hàm mới mỗi lần render
     const toggleMobileMenu = useCallback(() => {
         setShowMobileMenu(prevState => {
-            // Loại bỏ toast khi mở/đóng menu
             return !prevState;
         });
-    }, []);  // Empty dependency array để hàm không bị tạo lại
+    }, []);
     
     const handleLogout = useCallback(() => {
         logout();
         setShowMobileMenu(false);
         
-        // Chỉ hiển thị toast khi đăng xuất trên mobile
         const isMobileDevice = window.innerWidth <= 768;
         if (isMobileDevice) {
             showToast({
@@ -54,19 +55,16 @@ function Header() {
         }
     }, [logout]);
     
-    // Hàm xử lý khi người dùng nhấp vào một thương hiệu
     const navigateToBrand = useCallback((brand) => {
         navigate(`/products?brand=${encodeURIComponent(brand)}`);
         setShowMobileMenu(false);
     }, [navigate]);
     
-    // Hàm xử lý khi người dùng nhấp vào đồ nam hoặc đồ nữ
     const navigateToGender = useCallback((gender) => {
         navigate(`/products?gender=${encodeURIComponent(gender)}`);
         setShowMobileMenu(false);
     }, [navigate]);
     
-    // Hàm xử lý khi bấm vào icon search
     const toggleSearch = useCallback(() => {
         setShowSearch(prevState => !prevState);
         if (showSearch) {
@@ -74,10 +72,8 @@ function Header() {
         }
     }, [showSearch]);
     
-    // Hàm xử lý khi bấm vào icon search trên mobile
     const toggleMobileSearch = useCallback(() => {
         setShowMobileSearch(prevState => {
-            // Chỉ hiển thị toast khi mở search box lần đầu
             const isMobileDevice = window.innerWidth <= 768;
             if (isMobileDevice && !prevState) {
                 showToast({
@@ -94,7 +90,6 @@ function Header() {
         }
     }, [showMobileSearch]);
     
-    // Hàm xử lý khi submit form tìm kiếm
     const handleSearchSubmit = useCallback((e) => {
         e.preventDefault();
         if (searchTerm.trim()) {
@@ -102,7 +97,6 @@ function Header() {
             setShowSearch(false);
             setShowMobileSearch(false);
             
-            // Chỉ hiển thị toast khi tìm kiếm với từ khóa có ý nghĩa (dài hơn 3 ký tự)
             const isMobileDevice = window.innerWidth <= 768;
             if (isMobileDevice && searchTerm.trim().length > 3) {
                 showToast({
@@ -115,29 +109,37 @@ function Header() {
         }
     }, [navigate, searchTerm]);
     
-    // Hàm xử lý khi nhấn phím Enter trong input
     const handleKeyPress = useCallback((e) => {
         if (e.key === 'Enter') {
             handleSearchSubmit(e);
         }
     }, [handleSearchSubmit]);
+
+    const handleSuggestion = useCallback((term) => {
+        setSearchTerm(term);
+        navigate(`/products?search=${encodeURIComponent(term)}`);
+        setShowSearch(false);
+        setShowMobileSearch(false);
+    }, [navigate]);
+
+    const handleProductSuggestion = useCallback((product) => {
+        navigate(`/product/${product._id}`);
+        setShowSearch(false);
+        setShowMobileSearch(false);
+    }, [navigate]);
     
-    // Hàm để đóng mobile menu khi click vào link
     const closeMobileMenu = useCallback(() => {
         setShowMobileMenu(false);
         setActiveMobileDropdown(null);
         
-        // Bỏ thông báo toast khi chọn mục trong menu
     }, []);
 
-    // Hàm xử lý toggle mobile dropdown
     const toggleMobileDropdown = useCallback((dropdownName) => {
         setActiveMobileDropdown(prevDropdown => 
             prevDropdown === dropdownName ? null : dropdownName
         );
     }, []);
     
-    // Ngăn scroll khi mobile menu đang mở
     useEffect(() => {
         if (showMobileMenu) {
             document.body.style.overflow = 'hidden';
@@ -149,8 +151,21 @@ function Header() {
             document.body.style.overflow = 'visible';
         };
     }, [showMobileMenu]);
+
+    useEffect(() => {
+        const handleResize = () => {
+            if (window.innerWidth > 992 && showMobileMenu) {
+                setShowMobileMenu(false);
+            }
+        };
+
+        window.addEventListener('resize', handleResize);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+        };
+    }, [showMobileMenu]);
     
-    // Sử dụng useEffect riêng cho hamburger icon để đảm bảo sự nhất quán
     useEffect(() => {
         const handleHamburgerClick = (e) => {
             e.stopPropagation();
@@ -169,10 +184,8 @@ function Header() {
         };
     }, [toggleMobileMenu]);
     
-    // Hàm xử lý khi click ra ngoài thanh tìm kiếm
     useEffect(() => {
         const handleClickOutside = (event) => {
-            // Không xử lý click trên hamburger icon
             if (hamburgerIconRef.current && hamburgerIconRef.current.contains(event.target)) {
                 return;
             }
@@ -185,13 +198,11 @@ function Header() {
                 setSearchTerm('');
             }
             
-            // Xử lý đóng mobile search
             if (mobileSearchRef.current && showMobileSearch && !mobileSearchRef.current.contains(event.target)) {
                 setShowMobileSearch(false);
                 setSearchTerm('');
             }
             
-            // Xử lý đóng mobile menu khi click ra ngoài
             if (showMobileMenu && mobileMenuRef.current && !mobileMenuRef.current.contains(event.target)) {
                 setShowMobileMenu(false);
             }
@@ -203,19 +214,14 @@ function Header() {
         };
     }, [showSearch, showMobileMenu, showMobileSearch]);
     
-    // Xử lý khi người dùng nhấp vào đường dẫn đăng nhập trên mobile
     const handleMobileLogin = useCallback(() => {
         closeMobileMenu();
-        // Loại bỏ thông báo toast khi nhấp đăng nhập
     }, [closeMobileMenu]);
 
-    // Xử lý khi người dùng nhấp vào đường dẫn đăng ký trên mobile
     const handleMobileRegister = useCallback(() => {
         closeMobileMenu();
-        // Loại bỏ thông báo toast khi nhấp đăng ký
     }, [closeMobileMenu]);
     
-    // Thêm useEffect để xử lý scroll
     useEffect(() => {
         const handleScroll = () => {
             const scrollPosition = window.scrollY;
@@ -226,30 +232,27 @@ function Header() {
             }
         };
         
-        // Thêm event listener
         window.addEventListener('scroll', handleScroll);
         
-        // Gọi một lần để thiết lập trạng thái ban đầu
         handleScroll();
         
-        // Clean up
         return () => {
             window.removeEventListener('scroll', handleScroll);
         };
     }, []);
     
     return (
-        <header className={cx('header')}>
+        <header className={cx('header', { 'sticky': isHeaderSticky })}>
             <div className={cx('wrapper', { 'sticky': isHeaderSticky })}>
                 <div className={cx('nav')}>
                     {/* Menu desktop */}
                     <div className={cx('nav-left', 'desktop-only')}>
                         <ul className={cx('main-menu')}>
                             <li className={cx('nav-item')}>
-                                <Link to="/products" className={cx('nav-link')}>SẢN PHẨM</Link>
+                                <Link to="/products" className={cx('nav-link')}>Sản phẩm</Link>
                             </li>
                             <li className={cx('nav-item', 'dropdown')}>
-                                <span className={cx('nav-link', 'dropdown-toggle')}>THƯƠNG HIỆU</span>
+                                <span className={cx('nav-link', 'dropdown-toggle')}>Thương hiệu</span>
                                 <div className={cx('dropdown-menu')}>
                                     <a className={cx('dropdown-item')} onClick={() => navigateToBrand('Gucci')}>Gucci</a>
                                     <a className={cx('dropdown-item')} onClick={() => navigateToBrand('Louis Vuitton')}>Louis Vuitton</a>
@@ -261,10 +264,10 @@ function Header() {
                                 </div>
                             </li>
                             <li className={cx('nav-item')}>
-                                <a onClick={() => navigateToGender('Nam')} className={cx('nav-link')}>ĐỒ NAM</a>
+                                <a onClick={() => navigateToGender('Nam')} className={cx('nav-link')}>Đồ nam</a>
                             </li>
                             <li className={cx('nav-item')}>
-                                <a onClick={() => navigateToGender('Nữ')} className={cx('nav-link')}>ĐỒ NỮ</a>
+                                <a onClick={() => navigateToGender('Nữ')} className={cx('nav-link')}>Đồ nữ</a>
                             </li>
                         </ul>
                     </div>
@@ -297,6 +300,7 @@ function Header() {
                                     {showSearch && (
                                         <div id="search-box" className={cx('search-box')}>
                                             <form onSubmit={handleSearchSubmit}>
+                                                <i className={cx('search-icon-leading', 'fas', 'fa-search')}></i>
                                                 <input
                                                     type="text"
                                                     placeholder="Tìm kiếm sản phẩm..."
@@ -305,29 +309,72 @@ function Header() {
                                                     onKeyDown={handleKeyPress}
                                                     autoFocus
                                                 />
-                                                <button type="submit">
-                                                    <i className="fas fa-search"></i>
+                                                <button type="submit" className={cx('search-submit')} aria-label="Tìm kiếm">
+                                                    <i className="fas fa-arrow-right"></i>
                                                 </button>
                                             </form>
+                                            <div className={cx('search-suggestions')}>
+                                                {SEARCH_SUGGESTIONS.map((term) => (
+                                                    <button
+                                                        key={term}
+                                                        type="button"
+                                                        className={cx('search-chip')}
+                                                        onClick={() => handleSuggestion(term)}
+                                                    >
+                                                        {term}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                            {suggestions.length > 0 && (
+                                                <div className={cx('search-product-list')}>
+                                                    <p className={cx('search-product-heading')}>Sản phẩm</p>
+                                                    {suggestions.map((product) => (
+                                                        <button
+                                                            key={product._id}
+                                                            type="button"
+                                                            className={cx('search-product-item')}
+                                                            onClick={() => handleProductSuggestion(product)}
+                                                        >
+                                                            <span className={cx('search-product-thumb')}>
+                                                                {product.thumb ? (
+                                                                    <img src={product.thumb} alt={product.name} />
+                                                                ) : (
+                                                                    <i className="fas fa-box-open"></i>
+                                                                )}
+                                                            </span>
+                                                            <span className={cx('search-product-info')}>
+                                                                <span className={cx('search-product-name')}>{product.name}</span>
+                                                                <span className={cx('search-product-price')}>
+                                                                    {formatSuggestionPrice(product.price)}
+                                                                </span>
+                                                            </span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
                                     )}
                                 </div>
                             </li>
                             
                             <li className={cx('nav-item')}>
-                                <Link to="/info" className={cx('nav-link')}>LIÊN HỆ</Link>
+                                <Link to="/info" className={cx('nav-link')}>Liên hệ</Link>
+                            </li>
+
+                            <li className={cx('nav-item')}>
+                                <ThemeToggle />
                             </li>
 
                             {!user ? (
                                 <li className={cx('nav-item')}>
                                     <div className={cx('auth-buttons')}>
-                                        <Link to="/login" className={cx('btn-dtl')}>
+                                        <Link to="/login" className={cx('btn-dtl', 'btn-primary')}>
                                             <i className="fas fa-sign-in-alt" style={{ marginRight: '5px' }}></i>
-                                            <span className={cx('btn-text')}>ĐĂNG NHẬP</span>
+                                            <span className={cx('btn-text')}>Đăng nhập</span>
                                         </Link>
-                                        <Link to="/login?action=register" className={cx('btn-dtl')}>
+                                        <Link to="/login?action=register" className={cx('btn-dtl', 'btn-outline')}>
                                             <i className="fas fa-user-plus" style={{ marginRight: '5px' }}></i>
-                                            <span>ĐĂNG KÝ</span>
+                                            <span>Đăng ký</span>
                                         </Link>
                                     </div>
                                 </li>
@@ -368,14 +415,16 @@ function Header() {
                         </ul>
                     </div>
 
-                    {/* Mobile controls - Right */}
+                    {/* Mobile controls - Right — ThemeToggle TRƯỚC cart
+                        (user yêu cầu: icon theme nằm bên trái icon cart) */}
                     <div className={cx('mobile-nav-right', 'mobile-only')}>
+                        <ThemeToggle />
                         <div className={cx('mobile-cart')}>
                             <BadgeCart />
                         </div>
-                        <button 
+                        <button
                             type="button"
-                            className={cx('hamburger-icon')} 
+                            className={cx('hamburger-icon')}
                             ref={hamburgerIconRef}
                             aria-label={showMobileMenu ? "Đóng menu" : "Mở menu"}
                         >
@@ -403,14 +452,63 @@ function Header() {
                                 <i className="fas fa-times"></i>
                             </button>
                         </form>
+                        <div className={cx('search-suggestions')}>
+                            {SEARCH_SUGGESTIONS.map((term) => (
+                                <button
+                                    key={term}
+                                    type="button"
+                                    className={cx('search-chip')}
+                                    onClick={() => handleSuggestion(term)}
+                                >
+                                    {term}
+                                </button>
+                            ))}
+                        </div>
+                        {suggestions.length > 0 && (
+                            <div className={cx('search-product-list')}>
+                                <p className={cx('search-product-heading')}>Sản phẩm</p>
+                                {suggestions.map((product) => (
+                                    <button
+                                        key={product._id}
+                                        type="button"
+                                        className={cx('search-product-item')}
+                                        onClick={() => handleProductSuggestion(product)}
+                                    >
+                                        <span className={cx('search-product-thumb')}>
+                                            {product.thumb ? (
+                                                <img src={product.thumb} alt={product.name} />
+                                            ) : (
+                                                <i className="fas fa-box-open"></i>
+                                            )}
+                                        </span>
+                                        <span className={cx('search-product-info')}>
+                                            <span className={cx('search-product-name')}>{product.name}</span>
+                                            <span className={cx('search-product-price')}>
+                                                {formatSuggestionPrice(product.price)}
+                                            </span>
+                                        </span>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
                     </div>
                 )}
+            </div>
 
-                {/* Mobile Menu */}
+            {/* Mobile Menu */}
+                {/* Con trực tiếp của <header> (không nằm trong .wrapper) —
+                    .wrapper có transform + backdrop-filter nên là containing
+                    block, "hạ cấp" position: fixed của menu thành absolute
+                    theo .wrapper: trạng thái đóng translateX(100%) lòi
+                    360px sang phải gây tràn ngang toàn trang, user lướt
+                    ngang vẫn chạm được menu. Đặt ngoài .wrapper, ancestor
+                    còn lại (.page-transition) cũng phải không giữ transform
+                    — đã sửa PageTransition.scss keyframe kết thúc bằng
+                    transform: none. */}
                 <div className={cx('mobile-menu', { show: showMobileMenu })} ref={mobileMenuRef}>
                     <div className={cx('mobile-menu-header')}>
-                        <button 
-                            className={cx('close-menu-button')} 
+                        <button
+                            className={cx('close-menu-button')}
                             onClick={closeMobileMenu}
                             aria-label="Đóng menu"
                         >
@@ -420,14 +518,14 @@ function Header() {
                     </div>
                     <ul className={cx('mobile-menu-list')}>
                         <li>
-                            <Link to="/products" className={cx('mobile-menu-link')} onClick={closeMobileMenu}>SẢN PHẨM</Link>
+                            <Link to="/products" className={cx('mobile-menu-link')} onClick={closeMobileMenu}>Sản phẩm</Link>
                         </li>
                         <li className={cx('mobile-dropdown')}>
-                            <div 
+                            <div
                                 className={cx('mobile-dropdown-toggle', { active: activeMobileDropdown === 'brands' })}
                                 onClick={() => toggleMobileDropdown('brands')}
                             >
-                                <span>THƯƠNG HIỆU</span>
+                                <span>Thương hiệu</span>
                                 <i className={`fas fa-chevron-down ${activeMobileDropdown === 'brands' ? cx('rotate') : ''}`}></i>
                             </div>
                             <ul className={cx('mobile-dropdown-menu', { active: activeMobileDropdown === 'brands' })}>
@@ -441,36 +539,36 @@ function Header() {
                             </ul>
                         </li>
                         <li>
-                            <a onClick={() => navigateToGender('Nam')} className={cx('mobile-menu-link')}>ĐỒ NAM</a>
+                            <a onClick={() => navigateToGender('Nam')} className={cx('mobile-menu-link')}>Đồ nam</a>
                         </li>
                         <li>
-                            <a onClick={() => navigateToGender('Nữ')} className={cx('mobile-menu-link')}>ĐỒ NỮ</a>
+                            <a onClick={() => navigateToGender('Nữ')} className={cx('mobile-menu-link')}>Đồ nữ</a>
                         </li>
                         <li>
-                            <Link to="/info" className={cx('mobile-menu-link')} onClick={closeMobileMenu}>LIÊN HỆ</Link>
+                            <Link to="/info" className={cx('mobile-menu-link')} onClick={closeMobileMenu}>Liên hệ</Link>
                         </li>
-                        
+
                         {!user ? (
                             <>
                                 <li>
                                     <Link to="/login" className={cx('mobile-menu-link')} onClick={handleMobileLogin}>
-                                        <i className="fas fa-sign-in-alt"></i> ĐĂNG NHẬP
+                                        <i className="fas fa-sign-in-alt"></i> Đăng nhập
                                     </Link>
                                 </li>
                                 <li>
                                     <Link to="/login?action=register" className={cx('mobile-menu-link')} onClick={handleMobileRegister}>
-                                        <i className="fas fa-user-plus"></i> ĐĂNG KÝ
+                                        <i className="fas fa-user-plus"></i> Đăng ký
                                     </Link>
                                 </li>
                             </>
                         ) : (
                             <>
                                 <li className={cx('mobile-dropdown')}>
-                                    <div 
+                                    <div
                                         className={cx('mobile-dropdown-toggle', { active: activeMobileDropdown === 'account' })}
                                         onClick={() => toggleMobileDropdown('account')}
                                     >
-                                        <span><i className="fas fa-user-circle"></i> TÀI KHOẢN</span>
+                                        <span><i className="fas fa-user-circle"></i> Tài khoản</span>
                                         <i className={`fas fa-chevron-down ${activeMobileDropdown === 'account' ? cx('rotate') : ''}`}></i>
                                     </div>
                                     <ul className={cx('mobile-dropdown-menu', { active: activeMobileDropdown === 'account' })}>
@@ -505,7 +603,6 @@ function Header() {
                         )}
                     </ul>
                 </div>
-            </div>
         </header>
     );
 }

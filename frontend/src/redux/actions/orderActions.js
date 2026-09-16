@@ -18,7 +18,6 @@ import {
   PAYMENT_RESET
 } from '../constants/orderConstants.js';
 
-// Action để lấy danh sách đơn hàng của người dùng
 export const listMyOrders = () => async (dispatch, getState) => {
   try {
     dispatch({ type: ORDER_LIST_MY_REQUEST });
@@ -49,7 +48,6 @@ export const listMyOrders = () => async (dispatch, getState) => {
   }
 };
 
-// Action để lấy chi tiết đơn hàng
 export const getOrderDetails = (id) => async (dispatch, getState) => {
   try {
     dispatch({ type: ORDER_DETAILS_REQUEST });
@@ -80,12 +78,10 @@ export const getOrderDetails = (id) => async (dispatch, getState) => {
   }
 };
 
-// Reset danh sách đơn hàng (dùng khi logout)
 export const resetMyOrders = () => (dispatch) => {
   dispatch({ type: ORDER_LIST_MY_RESET });
 };
 
-// Action để tạo đơn hàng từ giỏ hàng
 export const createOrder = (orderData) => async (dispatch, getState) => {
   try {
     dispatch({ type: CHECKOUT_REQUEST });
@@ -121,7 +117,6 @@ export const createOrder = (orderData) => async (dispatch, getState) => {
   }
 };
 
-// Action để xử lý thanh toán
 export const processPayment = (orderId, paymentResult) => async (dispatch, getState) => {
   try {
     dispatch({ type: PAYMENT_REQUEST });

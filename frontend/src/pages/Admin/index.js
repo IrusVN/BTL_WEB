@@ -9,10 +9,10 @@ import { useNavigate } from 'react-router-dom';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTachometerAlt, faFileInvoice, faUsers, faSignOutAlt, faSearch, faPlus, faEye, faPencilAlt, faTrash, faTimes, faBars, faComments, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
+import { useHead } from '../../hooks/useHead.js';
 
 const cx = classNames.bind(styles);
 
-// Thêm tab Chat Support vào các tab quản lý
 const adminTabs = [
     { id: 'dashboard', label: 'Dashboard', icon: 'fas fa-home' },
     { id: 'products', label: 'Sản phẩm', icon: 'fas fa-box' },
@@ -20,10 +20,11 @@ const adminTabs = [
     { id: 'orders', label: 'Đơn hàng', icon: 'fas fa-shopping-cart' },
     { id: 'users', label: 'Người dùng', icon: 'fas fa-users' },
     { id: 'comments', label: 'Đánh giá', icon: 'fas fa-comments' },
-    { id: 'chat', label: 'Hỗ trợ khách hàng', icon: 'fas fa-comment-dots' } // Tab mới
+    { id: 'chat', label: 'Hỗ trợ khách hàng', icon: 'fas fa-comment-dots' }
 ];
 
 function Admin() {
+    useHead('Quản trị');
     const { token, user } = useAuth();
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState('dashboard');
@@ -60,7 +61,6 @@ function Admin() {
     const [genderFilter, setGenderFilter] = useState('');
     const [currentPage, setCurrentPage] = useState(1);
     
-    // State cho quản lý hóa đơn
     const [filteredInvoices, setFilteredInvoices] = useState([]);
     const [invoiceSearchTerm, setInvoiceSearchTerm] = useState('');
     const [invoiceStatusFilter, setInvoiceStatusFilter] = useState('');
@@ -68,7 +68,6 @@ function Admin() {
     const [selectedInvoice, setSelectedInvoice] = useState(null);
     const [showInvoiceModal, setShowInvoiceModal] = useState(false);
     
-    // State cho quản lý người dùng
     const [filteredUsers, setFilteredUsers] = useState([]);
     const [userSearchTerm, setUserSearchTerm] = useState('');
     const [selectedUser, setSelectedUser] = useState(null);
@@ -83,15 +82,12 @@ function Admin() {
         address: ''
     });
 
-    // Thêm vào phần khai báo state
     const [showEditForm, setShowEditForm] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [productImages, setProductImages] = useState([]);
     
-    // State cho sidebar responsive
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
-    // State cho chức năng chat
     const [conversations, setConversations] = useState([]);
     const [selectedConversation, setSelectedConversation] = useState(null);
     const [messages, setMessages] = useState([]);
@@ -101,12 +97,10 @@ function Admin() {
     const [conversationSearchTerm, setConversationSearchTerm] = useState('');
     const messagesEndRef = React.useRef(null);
 
-    // Toggle sidebar function
     const toggleSidebar = () => {
         setIsSidebarOpen(!isSidebarOpen);
     };
 
-    // Đóng sidebar khi chọn menu trên mobile
     const handleMenuItemClick = (tab) => {
         setActiveTab(tab);
         if (window.innerWidth <= 768) {
@@ -114,7 +108,6 @@ function Admin() {
         }
     };
 
-    // Effect để xử lý resize window
     useEffect(() => {
         const handleResize = () => {
             if (window.innerWidth > 768) {
@@ -130,7 +123,6 @@ function Admin() {
 
     const fetchDashboardData = async () => {
         try {
-            // Fetch orders
             const ordersResponse = await axios.get(`${API_URL}/orders/admin/orders`, {
                 withCredentials: true,
                 headers: {
@@ -148,7 +140,6 @@ function Admin() {
                 setInvoices(ordersResponse.data.orders);
             }
 
-            // Fetch products
             const productsResponse = await axios.get(`${API_URL}/products/products`, {
                 withCredentials: true,
                 headers: {
@@ -165,7 +156,6 @@ function Admin() {
                 setProducts(productsResponse.data.products);
             }
 
-            // Fetch users
             const usersResponse = await axios.get(`${API_URL}/users`, {
                 withCredentials: true,
                 headers: {
@@ -182,7 +172,6 @@ function Admin() {
                 setUsers(usersResponse.data.users);
             }
             
-            // Thêm vào fetch conversations cho dashboard
             const conversationsResponse = await axios.get(`${API_URL}/chat/conversations`, {
                 withCredentials: true,
                 headers: {
@@ -216,7 +205,6 @@ function Admin() {
     };
 
     useEffect(() => {
-        // Kiểm tra quyền admin khi component mount
         if (!user) {
             showToast({
                 title: "Quyền truy cập bị từ chối",
@@ -239,7 +227,6 @@ function Admin() {
             return;
         }
 
-        // Nếu có quyền admin, hiển thị thông báo chào mừng
         showToast({
             title: "Xin chào Admin",
             message: `Chào mừng ${user.name} đến với trang quản trị`,
@@ -262,21 +249,18 @@ function Admin() {
         }
     }, [activeTab, token]);
     
-    // Auto scroll to bottom of messages
     useEffect(() => {
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     }, [messages]);
     
-    // Thêm hàm cuộn xuống tin nhắn mới nhất
     const scrollToBottom = () => {
         if (messagesEndRef.current) {
             messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
         }
     };
     
-    // Hàm lấy danh sách cuộc hội thoại
     const fetchConversations = async () => {
         try {
             setChatLoading(true);
@@ -311,7 +295,6 @@ function Admin() {
         }
     };
     
-    // Hàm lấy tin nhắn của cuộc hội thoại
     const fetchMessages = async (conversationId) => {
         if (!conversationId) return;
         
@@ -327,7 +310,6 @@ function Admin() {
             if (response.data.success) {
                 setMessages(response.data.messages);
                 
-                // Đánh dấu đã đọc tin nhắn
                 markAsRead(conversationId);
             } else {
                 showToast({
@@ -350,7 +332,6 @@ function Admin() {
         }
     };
     
-    // Hàm đánh dấu tin nhắn đã đọc
     const markAsRead = async (conversationId) => {
         try {
             await axios.put(`${API_URL}/chat/conversation/${conversationId}/read`, {}, {
@@ -360,7 +341,6 @@ function Admin() {
                 }
             });
             
-            // Cập nhật lại UI để hiển thị đã đọc
             setConversations(prev => 
                 prev.map(conv => 
                     conv._id === conversationId 
@@ -381,7 +361,6 @@ function Admin() {
         }
     };
     
-    // Hàm gửi tin nhắn từ admin
     const handleSendChatMessage = async (e) => {
         e.preventDefault();
         
@@ -396,7 +375,6 @@ function Admin() {
                 isAdmin: true
             };
             
-            // Thêm tạm tin nhắn vào UI trước
             const tempMessage = {
                 ...messageData,
                 _id: Date.now().toString(),
@@ -406,10 +384,8 @@ function Admin() {
             setMessages(prev => [...prev, tempMessage]);
             setNewChatMessage('');
             
-            // Cuộn xuống ngay sau khi thêm tin nhắn mới
             setTimeout(scrollToBottom, 50);
             
-            // Gửi tin nhắn lên server
             const response = await axios.post(`${API_URL}/chat/message`, messageData, {
                 withCredentials: true,
                 headers: {
@@ -425,7 +401,6 @@ function Admin() {
                     duration: 3000
                 });
             } else {
-                // Cập nhật danh sách cuộc hội thoại trong nền, không làm reset UI
                 updateConversationSilently(selectedConversation._id, newChatMessage);
             }
         } catch (error) {
@@ -439,7 +414,6 @@ function Admin() {
         }
     };
     
-    // Thêm hàm cập nhật hội thoại mà không làm ảnh hưởng đến UI hiện tại
     const updateConversationSilently = async (conversationId, lastMessage) => {
         try {
             const response = await axios.get(`${API_URL}/chat/conversations`, {
@@ -450,10 +424,8 @@ function Admin() {
             });
             
             if (response.data.success) {
-                // Cập nhật state mà không làm ảnh hưởng đến selectedConversation hiện tại
                 setConversations(response.data.conversations);
                 
-                // Cập nhật filteredConversations nhưng giữ nguyên thứ tự
                 const updatedFilteredConvs = response.data.conversations.filter(conv => 
                     filteredConversations.some(fc => fc._id === conv._id)
                 );
@@ -467,16 +439,13 @@ function Admin() {
         }
     };
     
-    // Hàm chọn cuộc hội thoại
     const handleSelectConversation = (conversation) => {
         setSelectedConversation(conversation);
         fetchMessages(conversation._id);
         
-        // Đảm bảo cuộn xuống sau khi tin nhắn được tải
         setTimeout(scrollToBottom, 300);
     };
     
-    // Hàm tìm kiếm cuộc hội thoại
     const handleConversationSearch = (e) => {
         const term = e.target.value;
         setConversationSearchTerm(term);
@@ -494,17 +463,14 @@ function Admin() {
         setFilteredConversations(filtered);
     };
     
-    // Hàm để check nếu có tin nhắn chưa đọc
     const hasUnreadMessages = () => {
         return conversations.some(conv => conv.unreadCount > 0);
     };
     
-    // Hàm lấy tổng số tin nhắn chưa đọc
     const getTotalUnreadMessages = () => {
         return conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0);
     };
 
-    // Hàm lấy danh sách hóa đơn
     const fetchInvoices = async () => {
         try {
             const response = await axios.get(`${API_URL}/orders/admin/orders`, {
@@ -536,7 +502,6 @@ function Admin() {
         }
     };
 
-    // Hàm lấy danh sách sản phẩm
     const fetchProducts = async () => {
         try {
             const response = await axios.get(`${API_URL}/products/products`, {
@@ -565,7 +530,6 @@ function Admin() {
                     }
     };
     
-    // Hàm lấy danh sách người dùng
     const fetchUsers = async () => {
         try {
             const response = await axios.get(`${API_URL}/users`, {
@@ -597,18 +561,15 @@ function Admin() {
         }
     };
 
-    // Cập nhật khi sản phẩm thay đổi hoặc bộ lọc thay đổi
     useEffect(() => {
         if (activeTab === 'products') {
             filterProducts();
         }
     }, [products, searchTerm, brandFilter, priceSort, genderFilter, activeTab]);
 
-    // Hàm lọc sản phẩm
     const filterProducts = () => {
         let filtered = [...products];
         
-        // Lọc theo từ khóa tìm kiếm
         if (searchTerm.trim()) {
             const term = searchTerm.toLowerCase();
             filtered = filtered.filter(product => 
@@ -618,21 +579,18 @@ function Admin() {
             );
         }
         
-        // Lọc theo thương hiệu
         if (brandFilter) {
             filtered = filtered.filter(product => 
                 product.brand && product.brand.toLowerCase() === brandFilter.toLowerCase()
             );
         }
         
-        // Lọc theo giới tính
         if (genderFilter) {
             filtered = filtered.filter(product => 
                 product.gioiTinh && product.gioiTinh.toLowerCase() === genderFilter.toLowerCase()
             );
         }
         
-        // Sắp xếp
         if (priceSort === 'asc') {
             filtered.sort((a, b) => a.price - b.price);
         } else if (priceSort === 'desc') {
@@ -675,20 +633,17 @@ function Admin() {
     };
 
     const handleSaveProduct = () => {
-        // Tạo mã sản phẩm ngẫu nhiên nếu không được nhập
         const randomCode = !newProduct.code || newProduct.code.trim() === '' ? 
             `PROD-${Math.floor(Math.random() * 1000000)}` : newProduct.code;
             
-        // Tạo đối tượng sản phẩm phù hợp với schema
         const productData = {
             name: newProduct.name,
             price: newProduct.price,
             description: newProduct.description || `Mô tả sản phẩm ${newProduct.name}`,
             images: newProduct.images || [{ url: 'https://via.placeholder.com/150' }],
-            category: newProduct.category || 'Áo sơ mi', // Danh mục mặc định
+            category: newProduct.category || 'Áo sơ mi',
             stock: newProduct.stock || 10,
             code: randomCode,
-            // Các thông tin bổ sung
             brand: newProduct.brand,
             xuatXu: newProduct.xuatXu,
             gioiTinh: newProduct.gioiTinh,
@@ -751,7 +706,6 @@ function Admin() {
 
     const handleEditProduct = async (productId) => {
         try {
-            // Fetch chi tiết sản phẩm từ API
             const response = await axios.get(`${API_URL}/products/product/${productId}`, {
                 headers: {
                     Authorization: `Bearer ${token}`
@@ -760,7 +714,6 @@ function Admin() {
             
             if (response.data.success) {
                 const product = response.data.product;
-                // Cập nhật state với thông tin sản phẩm đang chỉnh sửa
                 setEditingProduct({
                     _id: product._id,
                     name: product.name,
@@ -841,68 +794,41 @@ function Admin() {
         setCurrentPage(prev => prev + 1);
     };
     
-    // Xử lý phân trang
     const getProductsForCurrentPage = () => {
-        const pageSize = 8; // 8 sản phẩm mỗi trang
+        const pageSize = 8;
         const startIdx = (currentPage - 1) * pageSize;
         const endIdx = startIdx + pageSize;
         return filteredProducts.slice(startIdx, endIdx);
     };
     
-    // Tính tổng số trang
     const getTotalPages = () => {
         const pageSize = 8;
         return Math.ceil(filteredProducts.length / pageSize);
     };
     
-    // Hiển thị thông báo khi không có sản phẩm
     const renderNoProductsMessage = () => {
         if (searchTerm || brandFilter || genderFilter) {
             return (
-                <div style={{ 
-                    textAlign: 'center', 
-                    padding: '50px 0', 
-                    color: '#666' 
-                }}>
-                    <i className="fas fa-search" style={{ fontSize: '48px', marginBottom: '15px', color: '#ccc' }}></i>
+                <div className={cx('empty-state')}>
+                    <i className={cx('empty-state-icon', 'fas fa-search')}></i>
                     <p>Không tìm thấy sản phẩm phù hợp với bộ lọc</p>
-                    <button 
+                    <button
                         onClick={clearFilters}
-                        style={{
-                            marginTop: '15px',
-                            padding: '10px 20px',
-                            backgroundColor: '#5c6bc0',
-                            color: 'white',
-                            border: 'none',
-                            borderRadius: '4px',
-                            cursor: 'pointer'
-                        }}
+                        className={cx('empty-state-btn')}
                     >
                         Xóa bộ lọc
                     </button>
                 </div>
             );
         }
-        
+
         return (
-            <div style={{ 
-                textAlign: 'center', 
-                padding: '50px 0', 
-                color: '#666' 
-            }}>
-                <i className="fas fa-box-open" style={{ fontSize: '48px', marginBottom: '15px', color: '#ccc' }}></i>
+            <div className={cx('empty-state')}>
+                <i className={cx('empty-state-icon', 'fas fa-box-open')}></i>
                 <p>Chưa có sản phẩm nào</p>
-                <button 
+                <button
                     onClick={handleAddProduct}
-                    style={{
-                        marginTop: '15px',
-                        padding: '10px 20px',
-                        backgroundColor: '#5c6bc0',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: '4px',
-                        cursor: 'pointer'
-                    }}
+                    className={cx('empty-state-btn')}
                 >
                     Thêm sản phẩm mới
                 </button>
@@ -918,13 +844,11 @@ function Admin() {
         setCurrentPage(1);
     };
 
-    // Hàm tìm kiếm và lọc hóa đơn
     useEffect(() => {
         if (invoices.length === 0) return;
         
         let result = [...invoices];
         
-        // Lọc theo từ khóa tìm kiếm
         if (invoiceSearchTerm.trim()) {
             const term = invoiceSearchTerm.toLowerCase();
             result = result.filter(invoice => 
@@ -934,14 +858,12 @@ function Admin() {
             );
         }
         
-        // Lọc theo trạng thái
         if (invoiceStatusFilter) {
             result = result.filter(invoice => 
                 invoice.orderStatus && invoice.orderStatus.toLowerCase() === invoiceStatusFilter.toLowerCase()
             );
         }
         
-        // Sắp xếp
         if (invoiceSort === 'date-desc') {
             result.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
         } else if (invoiceSort === 'date-asc') {
@@ -955,13 +877,11 @@ function Admin() {
         setFilteredInvoices(result);
     }, [invoices, invoiceSearchTerm, invoiceStatusFilter, invoiceSort]);
     
-    // Hàm tìm kiếm người dùng
     useEffect(() => {
         if (users.length === 0) return;
         
         let result = [...users];
         
-        // Lọc theo từ khóa tìm kiếm
         if (userSearchTerm.trim()) {
             const term = userSearchTerm.toLowerCase();
             result = result.filter(user => 
@@ -974,7 +894,6 @@ function Admin() {
         setFilteredUsers(result);
     }, [users, userSearchTerm]);
     
-    // Xử lý hủy đơn hàng
     const handleCancelOrder = async (orderId) => {
         try {
             const response = await axios.put(
@@ -995,7 +914,6 @@ function Admin() {
             );
             
             if (response.data.success) {
-                // Cập nhật danh sách hóa đơn
                 const updatedInvoices = invoices.map(invoice => {
                     if (invoice._id === orderId) {
                         return { ...invoice, orderStatus: 'Cancelled' };
@@ -1005,7 +923,6 @@ function Admin() {
                 
                 setInvoices(updatedInvoices);
                 
-                // Cập nhật danh sách đơn hàng gần đây trên dashboard
                 const updatedRecentOrders = dashboardStats.recentOrders.map(order => {
                     if (order._id === orderId) {
                         return { ...order, orderStatus: 'Cancelled' };
@@ -1018,7 +935,6 @@ function Admin() {
                     recentOrders: updatedRecentOrders
                 });
                 
-                // Đóng modal nếu đang xem chi tiết hóa đơn bị hủy
                 if (selectedInvoice && selectedInvoice._id === orderId) {
                     setSelectedInvoice({ ...selectedInvoice, orderStatus: 'Cancelled' });
                 }
@@ -1048,13 +964,11 @@ function Admin() {
         }
     };
     
-    // Xử lý xem chi tiết hóa đơn
     const handleViewInvoice = (invoice) => {
         setSelectedInvoice(invoice);
         setShowInvoiceModal(true);
     };
     
-    // Xử lý thêm người dùng mới
     const handleAddUser = () => {
         setNewUser({
             name: '',
@@ -1068,7 +982,6 @@ function Admin() {
         setShowUserModal(true);
     };
     
-    // Xử lý chỉnh sửa người dùng
     const handleEditUser = (userData) => {
         setNewUser({
             _id: userData._id,
@@ -1083,7 +996,6 @@ function Admin() {
         setShowUserModal(true);
     };
     
-    // Xử lý xóa người dùng
     const handleDeleteUser = async (userId) => {
         try {
             const response = await axios.delete(`${API_URL}/users/${userId}`, {
@@ -1094,7 +1006,6 @@ function Admin() {
             });
             
             if (response.data.success) {
-                // Cập nhật danh sách người dùng
                 const updatedUsers = users.filter(user => user._id !== userId);
                 setUsers(updatedUsers);
                 
@@ -1123,12 +1034,10 @@ function Admin() {
         }
     };
     
-    // Xử lý lưu thông tin người dùng
     const handleSaveUser = async () => {
         try {
             let response;
             
-            // Kiểm tra dữ liệu
             if (!newUser.name || !newUser.email) {
                 showToast({
                     title: "Lỗi",
@@ -1140,10 +1049,9 @@ function Admin() {
             }
             
             if (isEditingUser) {
-                // Cập nhật người dùng hiện có
                 const userData = { ...newUser };
                 if (!userData.password) {
-                    delete userData.password; // Không gửi mật khẩu nếu không thay đổi
+                    delete userData.password;
                 }
                 
                 response = await axios.put(
@@ -1157,7 +1065,6 @@ function Admin() {
                     }
                 );
             } else {
-                // Tạo người dùng mới
                 if (!newUser.password) {
                     showToast({
                         title: "Lỗi",
@@ -1181,10 +1088,8 @@ function Admin() {
             }
             
             if (response.data.success) {
-                // Cập nhật danh sách người dùng
                 fetchUsers();
                 
-                // Đóng modal
                 setShowUserModal(false);
                 
                 showToast({
@@ -1212,7 +1117,6 @@ function Admin() {
         }
     };
 
-    // Hàm hỗ trợ định dạng tiền tệ
     const formatCurrency = (amount) => {
         return new Intl.NumberFormat('vi-VN', {
             style: 'currency',
@@ -1220,7 +1124,6 @@ function Admin() {
         }).format(amount);
     };
 
-    // Hàm hỗ trợ định dạng ngày
     const formatDate = (dateString) => {
         const date = new Date(dateString);
         return new Intl.DateTimeFormat('vi-VN', {
@@ -1232,7 +1135,6 @@ function Admin() {
         }).format(date);
     };
 
-    // Hàm chuyển đổi trạng thái đơn hàng sang tiếng Việt
     const getStatusVietnamese = (status) => {
         switch (status) {
             case 'Processing': return 'Đang xử lý';
@@ -1243,7 +1145,6 @@ function Admin() {
         }
     };
 
-    // Thêm hàm xử lý xóa đơn hàng
     const handleRemoveOrder = async (orderId) => {
         if (!window.confirm('Bạn có chắc chắn muốn xóa hoàn toàn đơn hàng này? Hành động này không thể hoàn tác.')) {
             return;
@@ -1262,11 +1163,9 @@ function Admin() {
             );
             
             if (response.data.success) {
-                // Cập nhật danh sách hóa đơn
                 const updatedInvoices = invoices.filter(invoice => invoice._id !== orderId);
                 setInvoices(updatedInvoices);
                 
-                // Cập nhật danh sách đơn hàng gần đây trên dashboard
                 const updatedRecentOrders = dashboardStats.recentOrders.filter(order => order._id !== orderId);
                 
                 setDashboardStats({
@@ -1274,7 +1173,6 @@ function Admin() {
                     recentOrders: updatedRecentOrders
                 });
                 
-                // Đóng modal nếu đang xem chi tiết hóa đơn bị xóa
                 if (selectedInvoice && selectedInvoice._id === orderId) {
                     setSelectedInvoice(null);
                     setShowInvoiceModal(false);
@@ -1305,7 +1203,6 @@ function Admin() {
         }
     };
 
-    // Thêm hàm này sau hàm handleEditProduct
     const handleUpdateProduct = async () => {
         if (!editingProduct.name || !editingProduct.price) {
             showToast({
@@ -1332,7 +1229,6 @@ function Admin() {
             formData.append('xuatXu', editingProduct.xuatXu || '');
             formData.append('size', editingProduct.size || '');
 
-            // Nếu có hình ảnh mới
             if (productImages.length > 0) {
                 productImages.forEach(file => {
                     formData.append('images', file);
@@ -1352,7 +1248,6 @@ function Admin() {
             );
 
             if (response.data.success) {
-                // Cập nhật danh sách sản phẩm
                 const updatedProducts = products.map(product => {
                     if (product._id === editingProduct._id) {
                         return response.data.product;
@@ -1383,7 +1278,6 @@ function Admin() {
         }
     };
 
-    // Component StatBox riêng để có thể tùy chỉnh dễ dàng
     const StatBox = ({ icon, number, label, color }) => {
         const colorClasses = {
             blue: cx('stat-icon-blue'),
@@ -2294,36 +2188,28 @@ function Admin() {
                                         
                                         <div className={cx('filter-group')}>
                                             <label>&nbsp;</label>
-                                                    <button 
+                                            <button
                                                 onClick={clearFilters}
-                                                style={{
-                                                    padding: '8px 15px',
-                                                    backgroundColor: '#f44336',
-                                                    color: 'white',
-                                                    border: 'none',
-                                                    borderRadius: '4px',
-                                                    cursor: 'pointer',
-                                                    fontSize: '14px'
-                                                }}
+                                                className={cx('clear-filters-btn')}
                                             >
-                                                <i className="fas fa-times-circle" style={{ marginRight: '8px' }}></i>
+                                                <i className="fas fa-times-circle"></i>
                                                 Xóa bộ lọc
-                                                    </button>
-                                                    </div>
-                                                        </div>
+                                            </button>
+                                        </div>
+                                    </div>
 
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '20px 0' }}>
-                                                    <button 
-                                            className={cx('add-product-btn')} 
+                                    <div className={cx('list-toolbar')}>
+                                        <button
+                                            className={cx('add-product-btn')}
                                             onClick={handleAddProduct}
-                                                    >
+                                        >
                                             <i className="fas fa-plus-circle"></i>
                                             Thêm sản phẩm mới
-                                                    </button>
-                                        
-                                        <div style={{ fontWeight: '500', color: '#666' }}>
+                                        </button>
+
+                                        <div className={cx('product-count')}>
                                             Hiển thị {filteredProducts.length} sản phẩm
-                                                </div>
+                                        </div>
                                     </div>
 
                                     {filteredProducts.length > 0 && (
@@ -2384,18 +2270,18 @@ function Admin() {
                                                             </p>
                                                             {product.brand && (
                                                                 <div className={cx('product-brand')}>
-                                                                    <i className="fas fa-tag" style={{ marginRight: '5px' }}></i>
+                                                                    <i className="fas fa-tag"></i>
                                                                     {product.brand}
                                                                 </div>
                                                             )}
                                                             <div className={cx('product-meta')}>
                                                                 <span>
-                                                                    <i className="fas fa-box" style={{ marginRight: '5px' }}></i>
+                                                                    <i className="fas fa-box"></i>
                                                                     Tồn kho: {product.stock || 0}
                                                                 </span>
                                                                 {product.gioiTinh && (
                                                                     <span>
-                                                                        <i className="fas fa-user" style={{ marginRight: '5px' }}></i>
+                                                                        <i className="fas fa-user"></i>
                                                                         {product.gioiTinh}
                                                                     </span>
                                                                 )}
@@ -2656,7 +2542,6 @@ function Admin() {
         }
     };
 
-    // Hàm render sidebar
     const renderSidebar = () => {
         return (
             <div className={cx('sidebar', { 'sidebar-closed': !isSidebarOpen })}>
@@ -2739,13 +2624,11 @@ function Admin() {
         );
     };
 
-    // Hàm định dạng ngày giờ cho chat
     const formatChatTime = (dateString) => {
         const date = new Date(dateString);
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     };
 
-    // Hàm định dạng ngày tháng cho chat
     const formatChatDate = (dateString) => {
         const date = new Date(dateString);
         return date.toLocaleDateString('vi-VN', { 
@@ -2755,7 +2638,6 @@ function Admin() {
         });
     };
 
-    // Hàm nhóm tin nhắn theo ngày
     const groupMessagesByDate = (messages) => {
         const groups = {};
         
@@ -2770,16 +2652,13 @@ function Admin() {
             groups[dateString].push(message);
         });
         
-        // Chuyển thành mảng có thể render
         return Object.entries(groups).map(([date, messages]) => ({
             date,
             messages
         }));
     };
 
-    // Thêm hàm xóa cuộc hội thoại sau hàm handleConversationSearch
     const handleDeleteConversation = async (conversationId) => {
-        // Hiển thị confirm trước khi xóa
         if (!window.confirm('Bạn có chắc chắn muốn xóa cuộc hội thoại này? Tất cả tin nhắn sẽ bị xóa vĩnh viễn.')) {
             return;
         }
@@ -2794,11 +2673,9 @@ function Admin() {
             });
             
             if (response.data.success) {
-                // Cập nhật UI
                 setConversations(prev => prev.filter(conv => conv._id !== conversationId));
                 setFilteredConversations(prev => prev.filter(conv => conv._id !== conversationId));
                 
-                // Nếu đang xem cuộc hội thoại bị xóa, quay về danh sách
                 if (selectedConversation && selectedConversation._id === conversationId) {
                     setSelectedConversation(null);
                     setMessages([]);

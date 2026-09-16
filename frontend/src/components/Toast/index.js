@@ -5,36 +5,30 @@ import '@fortawesome/fontawesome-free/css/all.min.css';
 
 const cx = classNames.bind(styles);
 
-// Hàm kiểm tra xem thiết bị hiện tại có phải là mobile không
 const isMobileDevice = () => {
     return window.innerWidth <= 768 || 
            /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
 };
 
-// Lưu trữ thông báo gần đây để tránh hiển thị trùng lặp
 const recentToasts = new Map();
 
 export function showToast({ title = "", message = "", type = "info", duration = 3000, position = "top-right" }) {
     const main = document.getElementById("toast-container");
     const isMobile = isMobileDevice();
     
-    // Tạo key duy nhất cho thông báo
     const toastKey = `${title}-${message}-${type}`;
     
-    // Kiểm tra xem thông báo đã hiển thị gần đây chưa
     const now = Date.now();
     if (recentToasts.has(toastKey)) {
         const lastShown = recentToasts.get(toastKey);
-        if (now - lastShown < 3000) { // Chỉ hiển thị lại thông báo sau 3 giây
+        if (now - lastShown < 3000) {
             console.log('Đã chặn toast trùng lặp:', toastKey);
-            return; // Không hiển thị thông báo trùng lặp
+            return;
         }
     }
     
-    // Lưu thời gian hiển thị thông báo
     recentToasts.set(toastKey, now);
     
-    // Xóa các thông báo cũ sau 10 giây
     setTimeout(() => {
         recentToasts.delete(toastKey);
     }, 10000);
@@ -42,7 +36,6 @@ export function showToast({ title = "", message = "", type = "info", duration = 
     if (main) {
         const toast = document.createElement("div");
         
-        // Auto remove toast
         const autoRemoveId = setTimeout(function () {
             toast.classList.add(cx('hide'));
             setTimeout(() => {
@@ -52,7 +45,6 @@ export function showToast({ title = "", message = "", type = "info", duration = 
             }, 500);
         }, duration);
     
-        // Xử lý sự kiện khi nhấn nút đóng (X)
         const handleClose = function() {
             toast.classList.add(cx('hide'));
             clearTimeout(autoRemoveId);
@@ -75,13 +67,10 @@ export function showToast({ title = "", message = "", type = "info", duration = 
     
         toast.classList.add(cx('toast'), cx(`toast--${type}`));
         
-        // Điều chỉnh animation dựa trên thiết bị
         if (isMobile) {
-            // Thiết bị di động sẽ slide từ dưới lên
             toast.style.animation = `slideInBottom ease .3s, fadeOut linear 1s ${delay}s forwards`;
             toast.classList.add(cx('toast--mobile'));
         } else {
-            // Desktop sẽ slide từ phải qua
             toast.style.animation = `slideInLeft ease .3s, fadeOut linear 1s ${delay}s forwards`;
         }
     
@@ -98,7 +87,6 @@ export function showToast({ title = "", message = "", type = "info", duration = 
             </div>
         `;
         
-        // Đặt sự kiện click cho nút đóng
         main.appendChild(toast);
         
         const closeButton = toast.querySelector(`.${cx('toast__close')}`);
@@ -106,14 +94,11 @@ export function showToast({ title = "", message = "", type = "info", duration = 
             closeButton.addEventListener('click', handleClose);
         }
         
-        // Xử lý sự kiện click trên mobile
         if (isMobile) {
-            // Cho phép tap để tạm dừng biến mất
             toast.addEventListener('touchstart', function() {
                 clearTimeout(autoRemoveId);
             });
             
-            // Khi thả tay, tiếp tục hẹn giờ biến mất
             toast.addEventListener('touchend', function() {
                 const newAutoRemoveId = setTimeout(function () {
                     toast.classList.add(cx('hide'));
@@ -122,10 +107,9 @@ export function showToast({ title = "", message = "", type = "info", duration = 
                             main.removeChild(toast);
                         }
                     }, 500);
-                }, duration / 2); // Giảm thời gian còn nửa
+                }, duration / 2);
             });
         } else {
-            // Các sự kiện cho desktop
             toast.addEventListener('mouseenter', function() {
                 clearTimeout(autoRemoveId);
             });
@@ -145,9 +129,7 @@ export function showToast({ title = "", message = "", type = "info", duration = 
 }
 
 function Toast() {
-    // Sử dụng useEffect để tạo container cho toast
     useEffect(() => {
-        // Kiểm tra xem toast-container đã tồn tại chưa
         if (!document.getElementById("toast-container")) {
             const container = document.createElement('div');
             container.id = "toast-container";
@@ -159,17 +141,12 @@ function Toast() {
             console.log("Toast container already exists");
         }
         
-        // Clean up khi component unmount - chúng ta không xóa container khi component unmount
-        // vì điều này có thể gây ra lỗi nếu component được mount/unmount nhiều lần
-        // Thay vào đó chúng ta chỉ xóa khi ứng dụng đóng
         return () => {
-            // Không xóa container khi component unmount
-            // Chỉ log để debug
             console.log("Toast component unmounted, container preserved");
         };
     }, []);
     
-    return null; // Component không render bất kỳ phần tử nào
+    return null;
 }
 
 export default Toast; 

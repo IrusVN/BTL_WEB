@@ -6,10 +6,10 @@ import { useSlider } from './home.js';
 import ProductItem from '../../components/ProductItem/index.js';
 import { getProducts } from '../../services/productService.js';
 import { showToast } from '../../components/Toast/index.js';
+import { useHead } from '../../hooks/useHead.js';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
-// Import logo images
 import logoAdidas from '../../img/Logo/logo_adidas.png';
 import logoBalenciaga from '../../img/Logo/logo_balenciaga.png';
 import logoDior from '../../img/Logo/logo_dior.png';
@@ -22,6 +22,7 @@ const cx = classNames.bind(styles);
 
 function Home() {
     const navigate = useNavigate();
+    useHead('Team2hand — Thời trang chính hãng');
     const { 
         currentSlide, 
         slides, 
@@ -43,26 +44,22 @@ function Home() {
         { name: 'Adidas', logo: logoAdidas },
         { name: 'Balenciaga', logo: logoBalenciaga },
         { name: 'Dior', logo: logoDior },
-        { name: 'Gucci', logo: logoGucci },
-        { name: 'Louis Vuitton', logo: logoLV },
+        { name: 'Gucci', logo: logoGucci, blend: true },
+        { name: 'Louis Vuitton', logo: logoLV, blend: true },
         { name: 'Nike', logo: logoNike },
         { name: 'Prada', logo: logoPrada }
     ];
 
-    // Refs cho các container sản phẩm
     const productsRef = useRef(null);
     const nikeProductsRef = useRef(null);
     const gucciProductsRef = useRef(null);
     const diorProductsRef = useRef(null);
 
     useEffect(() => {
-        // Số sản phẩm hiển thị tối đa mỗi section
         const MAX_PRODUCTS = 8;
 
         const fetchProducts = async () => {
             try {
-                // Gọi song song 4 request: sản phẩm nổi bật + 3 brand, mỗi request
-                // chỉ lấy đúng số sản phẩm cần hiển thị thay vì fetch cả catalog
                 const [featuredRes, nikeRes, gucciRes, diorRes] = await Promise.all([
                     getProducts({ limit: MAX_PRODUCTS }),
                     getProducts({ brand: 'Nike', limit: MAX_PRODUCTS }),
@@ -103,7 +100,6 @@ function Home() {
         }, 600);
     };
 
-    // Hàm scroll sản phẩm
     const scrollProducts = (ref, direction) => {
         if (!ref.current) return;
         
@@ -113,14 +109,12 @@ function Home() {
         
         if (direction === 'right') {
             if (container.scrollLeft >= maxScroll - 10) {
-                // Nếu đã ở cuối, quay lại đầu
                 container.scrollTo({ left: 0, behavior: 'smooth' });
             } else {
                 container.scrollBy({ left: scrollAmount, behavior: 'smooth' });
             }
         } else {
             if (container.scrollLeft <= 10) {
-                // Nếu đã ở đầu, chuyển đến cuối
                 container.scrollTo({ left: maxScroll, behavior: 'smooth' });
             } else {
                 container.scrollBy({ left: -scrollAmount, behavior: 'smooth' });
@@ -128,47 +122,37 @@ function Home() {
         }
     };
 
-    // Component hiển thị danh sách sản phẩm với nút điều khiển
-    const ProductsSection = ({ title, products, loading, error, containerRef }) => {
-        // Hiển thị tối đa 8 sản phẩm thay vì 5 để có thêm sản phẩm để vuốt trên mobile
+    const ProductsSection = ({ title, products, loading, error, containerRef, viewAllLink }) => {
         const maxProducts = products?.slice(0, 8) || [];
         const [isUserScrolling, setIsUserScrolling] = useState(false);
         const scrollTimeoutRef = useRef(null);
-        
-        // Thêm xử lý touch cho mobile
+
         const handleTouchStart = (e) => {
-            // Người dùng bắt đầu vuốt, đánh dấu đang vuốt
             setIsUserScrolling(true);
-            
-            // Hủy timeout trước đó nếu có
+
             if (scrollTimeoutRef.current) {
                 clearTimeout(scrollTimeoutRef.current);
             }
         };
-        
+
         const handleTouchEnd = (e) => {
-            // Sau khi kết thúc vuốt, đặt timeout để duy trì vị trí cuộn hiện tại
             scrollTimeoutRef.current = setTimeout(() => {
                 setIsUserScrolling(false);
-            }, 10000); // Đợi 10 giây trước khi reset trạng thái vuốt
+            }, 10000);
         };
-        
-        // Thêm sự kiện scroll để xử lý khi người dùng scroll chuột trên desktop
+
         const handleScroll = () => {
             setIsUserScrolling(true);
-            
-            // Hủy timeout trước đó nếu có
+
             if (scrollTimeoutRef.current) {
                 clearTimeout(scrollTimeoutRef.current);
             }
-            
-            // Đặt timeout để reset trạng thái sau khi scroll dừng
+
             scrollTimeoutRef.current = setTimeout(() => {
                 setIsUserScrolling(false);
-            }, 10000); // Đợi 10 giây trước khi reset trạng thái vuốt
+            }, 10000);
         };
-        
-        // Cleanup timer khi component unmount
+
         useEffect(() => {
             return () => {
                 if (scrollTimeoutRef.current) {
@@ -176,35 +160,62 @@ function Home() {
                 }
             };
         }, []);
-        
+
         return (
-            <div>
-                <h2 className={cx('section-title')}>{title}</h2>
-                <div className={cx('products-wrapper')}>
-                    <div 
-                        className={cx('products-grid')} 
-                        ref={containerRef}
-                        onTouchStart={handleTouchStart}
-                        onTouchEnd={handleTouchEnd}
-                        onScroll={handleScroll}
-                        data-user-scrolling={isUserScrolling}
-                    >
-                        {loading ? (
-                            <div className={cx('loading')}>Đang tải...</div>
-                        ) : error ? (
-                            <div className={cx('error')}>Có lỗi xảy ra: {error}</div>
-                        ) : maxProducts.length === 0 ? (
-                            <div className={cx('no-products')}>Không có sản phẩm nào</div>
-                        ) : (
-                            maxProducts.map((product) => (
-                                <div key={product._id} className={cx('product-item')}>
-                                    <ProductItem product={product} />
-                                </div>
-                            ))
+            <section className={cx('products-section')}>
+                <div className={cx('container')}>
+                    <div className={cx('section-header')}>
+                        <h2 className={cx('section-title')}>{title}</h2>
+                        {viewAllLink && (
+                            <Link className={cx('view-all')} to={viewAllLink}>Xem tất cả →</Link>
                         )}
                     </div>
+                    <div className={cx('products-wrapper')}>
+                        <button
+                            className={cx('rail-arrow', 'rail-prev')}
+                            onClick={() => scrollProducts(containerRef, 'left')}
+                            aria-label="Cuộn sang trái"
+                        >
+                            <FontAwesomeIcon icon={faChevronLeft} />
+                        </button>
+                        <button
+                            className={cx('rail-arrow', 'rail-next')}
+                            onClick={() => scrollProducts(containerRef, 'right')}
+                            aria-label="Cuộn sang phải"
+                        >
+                            <FontAwesomeIcon icon={faChevronRight} />
+                        </button>
+                        <div
+                            className={cx('products-grid')}
+                            ref={containerRef}
+                            onTouchStart={handleTouchStart}
+                            onTouchEnd={handleTouchEnd}
+                            onScroll={handleScroll}
+                            data-user-scrolling={isUserScrolling}
+                        >
+                            {loading ? (
+                                [0, 1, 2, 3].map((i) => (
+                                    <div key={i} className={cx('skeleton-card')}>
+                                        <div className={cx('skeleton-image')}></div>
+                                        <div className={cx('skeleton-line')}></div>
+                                        <div className={cx('skeleton-line', 'skeleton-line-short')}></div>
+                                    </div>
+                                ))
+                            ) : error ? (
+                                <div className={cx('error')}>Có lỗi xảy ra: {error}</div>
+                            ) : maxProducts.length === 0 ? (
+                                <div className={cx('no-products')}>Không có sản phẩm nào</div>
+                            ) : (
+                                maxProducts.map((product) => (
+                                    <div key={product._id} className={cx('product-item')}>
+                                        <ProductItem product={product} />
+                                    </div>
+                                ))
+                            )}
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </section>
         );
     };
 
@@ -254,58 +265,64 @@ function Home() {
                 </div>
             </div>
             
-            <div className={cx('container')}>
-                {/* Sản phẩm nổi bật */}
-                <ProductsSection 
-                    title="Sản phẩm nổi bật" 
-                    products={products} 
-                    loading={loading} 
-                    error={error} 
-                    containerRef={productsRef}
-                />
-                
-                {/* Nike products */}
-                <ProductsSection 
-                    title="Nike" 
-                    products={nikeProducts} 
-                    loading={loading} 
-                    error={error} 
-                    containerRef={nikeProductsRef}
-                />
-                
-                {/* Gucci products */}
-                <ProductsSection 
-                    title="Gucci" 
-                    products={gucciProducts} 
-                    loading={loading} 
-                    error={error} 
-                    containerRef={gucciProductsRef}
-                />
-                
-                {/* Dior products */}
-                <ProductsSection 
-                    title="Dior" 
-                    products={diorProducts} 
-                    loading={loading} 
-                    error={error} 
-                    containerRef={diorProductsRef}
-                />
+            {/* Sản phẩm nổi bật */}
+            <ProductsSection
+                title="Sản phẩm nổi bật"
+                products={products}
+                loading={loading}
+                error={error}
+                containerRef={productsRef}
+                viewAllLink="/products"
+            />
 
-                {/* Brands */}
-                <h2 className={cx('section-title')}>Thương hiệu của chúng tôi</h2>
-                <div className={cx('brands-container')}>
-                    {brands.map((brand, index) => (
-                        <div 
-                            key={index} 
-                            className={cx('brand-item')}
-                            onClick={() => handleBrandClick(brand.name)}
-                            aria-label={`Thương hiệu ${brand.name}`}
-                        >
-                            <img src={brand.logo} alt={brand.name} />
-                        </div>
-                    ))}
+            {/* Nike products */}
+            <ProductsSection
+                title="Nike"
+                products={nikeProducts}
+                loading={loading}
+                error={error}
+                containerRef={nikeProductsRef}
+                viewAllLink="/products?brand=Nike"
+            />
+
+            {/* Gucci products */}
+            <ProductsSection
+                title="Gucci"
+                products={gucciProducts}
+                loading={loading}
+                error={error}
+                containerRef={gucciProductsRef}
+                viewAllLink="/products?brand=Gucci"
+            />
+
+            {/* Dior products */}
+            <ProductsSection
+                title="Dior"
+                products={diorProducts}
+                loading={loading}
+                error={error}
+                containerRef={diorProductsRef}
+                viewAllLink="/products?brand=Dior"
+            />
+
+            {/* Brands */}
+            <section className={cx('brands-section')}>
+                <div className={cx('container')}>
+                    <h2 className={cx('section-title')}>Thương hiệu của chúng tôi</h2>
+                    <div className={cx('brands-container')}>
+                        {brands.map((brand, index) => (
+                            <div
+                                key={index}
+                                className={cx('brand-item')}
+                                onClick={() => handleBrandClick(brand.name)}
+                                aria-label={`Thương hiệu ${brand.name}`}
+                            >
+                                <img src={brand.logo} alt={brand.name} className={brand.blend ? cx('logo-blend') : undefined} />
+                            </div>
+                        ))}
+                    </div>
                 </div>
-            </div>
+            </section>
         </div>
     );
 }

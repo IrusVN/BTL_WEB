@@ -2,12 +2,10 @@ const nodemailer = require('nodemailer');
 const { google } = require('googleapis');
 const OAuth2 = google.auth.OAuth2;
 
-// Cấu hình OAuth2
 const createTransporter = async () => {
   console.log('Đang tạo transporter...');
   
   try {
-    // Kiểm tra các biến môi trường
     if (!process.env.CLIENT_ID || !process.env.CLIENT_SECRET || !process.env.REFRESH_TOKEN || !process.env.EMAIL) {
       console.log('Thiếu biến môi trường OAuth2, chuyển sang sử dụng phương thức dự phòng');
       throw new Error('Missing OAuth2 environment variables');
@@ -48,10 +46,9 @@ const createTransporter = async () => {
         clientSecret: process.env.CLIENT_SECRET,
         refreshToken: process.env.REFRESH_TOKEN
       },
-      debug: true // Bật chế độ debug
+      debug: true
     });
 
-    // Kiểm tra kết nối
     await transporter.verify();
     console.log('Đã xác minh kết nối với email server');
     
@@ -68,19 +65,17 @@ const createTransporter = async () => {
       
       console.log('Tạo transporter với App Password cho email:', process.env.EMAIL);
       
-      // Sử dụng transporter dự phòng
       const backupTransporter = nodemailer.createTransport({
         host: process.env.SMTP_HOST || 'smtp.gmail.com',
         port: process.env.SMTP_PORT || 587,
-        secure: false, // true for 465, false for other ports
+        secure: false,
         auth: {
           user: process.env.EMAIL,
           pass: process.env.EMAIL_PASSWORD
         },
-        debug: true // Bật chế độ debug
+        debug: true
       });
       
-      // Kiểm tra kết nối
       await backupTransporter.verify();
       console.log('Đã xác minh kết nối với email server (phương thức dự phòng)');
       
@@ -92,7 +87,8 @@ const createTransporter = async () => {
   }
 };
 
-// Gửi email xác nhận đơn hàng
+exports.createTransporter = createTransporter;
+
 exports.sendOrderConfirmationEmail = async (orderDetails, userEmail) => {
   try {
     console.log(`Chuẩn bị gửi email xác nhận đơn hàng đến: ${userEmail}`);
@@ -104,7 +100,6 @@ exports.sendOrderConfirmationEmail = async (orderDetails, userEmail) => {
     
     const transporter = await createTransporter();
     
-    // Tạo bảng mua hàng
     let orderItemsHtml = '';
     orderDetails.orderItems.forEach(item => {
       orderItemsHtml += `
@@ -122,7 +117,6 @@ exports.sendOrderConfirmationEmail = async (orderDetails, userEmail) => {
     
     console.log('Đang chuẩn bị nội dung email...');
     
-    // Gửi email
     const mailOptions = {
       from: `"Shop" <${process.env.EMAIL}>`,
       to: userEmail,
@@ -208,11 +202,9 @@ exports.sendOrderConfirmationEmail = async (orderDetails, userEmail) => {
   } catch (error) {
     console.error('Lỗi khi gửi email:', error);
     
-    // Thử phương pháp gửi mail thay thế nếu cần
     try {
       console.log('Thử gửi lại với nội dung đơn giản hơn...');
       
-      // Tạo transporter mới cho lần gửi thứ hai
       const backupTransporter = nodemailer.createTransport({
         host: 'smtp.gmail.com',
         port: 587,

@@ -5,10 +5,12 @@ import classNames from 'classnames/bind';
 import { useAuth } from '../../context/AuthContext.js';
 import { updateSettings } from '../../services/authService.js';
 import { showToast } from '../../components/Toast/index.js';
+import { useHead } from '../../hooks/useHead.js';
 
 const cx = classNames.bind(styles);
 
 const Setting = () => {
+    useHead('Cài đặt');
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -34,7 +36,6 @@ const Setting = () => {
       return;
     }
 
-    // Điền dữ liệu thiết lập hiện tại của người dùng
     if (user.notificationSettings) {
       setSettings(prevState => ({
         ...prevState,
@@ -100,7 +101,6 @@ const Setting = () => {
       const response = await updateSettings(settings);
       
       if (response.success) {
-        // Cập nhật thông tin người dùng trong context
         if (response.user) {
           login(response.user, localStorage.getItem('token'));
         }

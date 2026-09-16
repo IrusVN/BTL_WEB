@@ -9,7 +9,6 @@ import {
   paymentReducer 
 } from './redux/reducers/orderReducers.js';
 
-// Tạo userLoginReducer tạm thời
 const userLoginReducer = (state = { userInfo: null }, action) => {
   switch (action.type) {
     case 'USER_LOGIN_SUCCESS':
@@ -45,7 +44,6 @@ const initialState = {
 
 const middleware = [thunk];
 
-// Tạo store mà không cần DevTools
 const store = createStore(
   reducer,
   initialState,

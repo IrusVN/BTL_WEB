@@ -6,6 +6,7 @@ import axios from 'axios';
 import { API_URL } from '../../services/authService.js';
 import { showToast } from '../../components/Toast/index.js';
 import { useAuth } from '../../context/AuthContext.js';
+import { useHead } from '../../hooks/useHead.js';
 
 const cx = classNames.bind(styles);
 
@@ -36,6 +37,7 @@ const OrderStatusBadge = ({ status }) => {
 };
 
 const OrderDetail = () => {
+    useHead('Chi tiết đơn hàng');
   const { id } = useParams();
   const [order, setOrder] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -111,7 +113,6 @@ const OrderDetail = () => {
       );
       
       if (response.data.success) {
-        // Cập nhật trạng thái đơn hàng
         setOrder({ ...order, orderStatus: 'Cancelled' });
         setShowConfirmCancel(false);
         
@@ -142,7 +143,6 @@ const OrderDetail = () => {
     }
   };
   
-  // Format date to Vietnamese locale
   const formatDate = (dateString) => {
     if (!dateString) return 'Chưa cập nhật';
     

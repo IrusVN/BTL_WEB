@@ -3,7 +3,6 @@ const Product = require('../models/Product');
 const User = require('../models/User');
 const { sendOrderConfirmationEmail } = require('../services/emailService');
 
-// Tạo đơn hàng mới
 exports.newOrder = async (req, res) => {
     try {
         const {
@@ -28,16 +27,13 @@ exports.newOrder = async (req, res) => {
             user: req.user._id
         });
 
-        // Lấy thông tin email của người dùng
         const user = await User.findById(req.user._id);
         
-        // Gửi email xác nhận đơn hàng nếu có email
         if (user && user.email) {
             try {
                 await sendOrderConfirmationEmail(order, user.email);
             } catch (emailError) {
                 console.error('Lỗi khi gửi email xác nhận:', emailError);
-                // Không ảnh hưởng đến quy trình tạo đơn hàng nếu gửi email thất bại
             }
         }
 
@@ -53,7 +49,6 @@ exports.newOrder = async (req, res) => {
     }
 };
 
-// Lấy chi tiết đơn hàng
 exports.getSingleOrder = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id).populate(
@@ -80,7 +75,6 @@ exports.getSingleOrder = async (req, res) => {
     }
 };
 
-// Lấy tất cả đơn hàng của người dùng đăng nhập
 exports.myOrders = async (req, res) => {
     try {
         const orders = await Order.find({ user: req.user._id });
@@ -97,7 +91,6 @@ exports.myOrders = async (req, res) => {
     }
 };
 
-// Lấy tất cả đơn hàng (ADMIN)
 exports.getAllOrders = async (req, res) => {
     try {
         const orders = await Order.find();
@@ -120,7 +113,6 @@ exports.getAllOrders = async (req, res) => {
     }
 };
 
-// Cập nhật trạng thái đơn hàng (ADMIN)
 exports.updateOrder = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id);
@@ -162,7 +154,6 @@ exports.updateOrder = async (req, res) => {
     }
 };
 
-// Gửi lại email xác nhận đơn hàng
 exports.resendOrderConfirmationEmail = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id);
@@ -174,7 +165,6 @@ exports.resendOrderConfirmationEmail = async (req, res) => {
             });
         }
         
-        // Kiểm tra quyền truy cập: chỉ admin hoặc chính người đặt hàng mới có thể gửi lại email
         if (req.user.role !== 'admin' && order.user.toString() !== req.user._id.toString()) {
             return res.status(403).json({
                 success: false,
@@ -182,7 +172,6 @@ exports.resendOrderConfirmationEmail = async (req, res) => {
             });
         }
         
-        // Lấy thông tin email của người dùng
         const user = await User.findById(order.user);
         
         if (!user || !user.email) {
@@ -192,7 +181,6 @@ exports.resendOrderConfirmationEmail = async (req, res) => {
             });
         }
 
-        // Kiểm tra xem các biến môi trường cần thiết đã được cấu hình chưa
         if (!process.env.EMAIL) {
             return res.status(500).json({
                 success: false,
@@ -200,7 +188,6 @@ exports.resendOrderConfirmationEmail = async (req, res) => {
             });
         }
         
-        // Gửi email xác nhận
         const emailSent = await sendOrderConfirmationEmail(order, user.email);
         
         if (emailSent) {
@@ -229,7 +216,6 @@ async function updateStock(id, quantity) {
     await product.save({ validateBeforeSave: false });
 }
 
-// Xóa đơn hàng (ADMIN)
 exports.deleteOrder = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id);
@@ -254,7 +240,6 @@ exports.deleteOrder = async (req, res) => {
     }
 };
 
-// Người dùng hủy đơn hàng
 exports.cancelOrder = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id);
@@ -273,7 +258,6 @@ exports.cancelOrder = async (req, res) => {
             });
         }
         
-        // Kiểm tra xem đơn hàng có thể hủy không (chỉ có thể hủy khi trạng thái là Processing)
         if (order.orderStatus !== 'Processing') {
             return res.status(400).json({
                 success: false,
@@ -281,14 +265,11 @@ exports.cancelOrder = async (req, res) => {
             });
         }
 
-        // Cập nhật trạng thái đơn hàng thành Cancelled
         order.orderStatus = 'Cancelled';
 
-        // Cập nhật lại số lượng sản phẩm trong kho
         for (const item of order.orderItems) {
             const product = await Product.findById(item.product);
             if (product) {
-                // Trả lại số lượng sản phẩm vào kho
                 product.stock += item.quantity;
                 await product.save({ validateBeforeSave: false });
             }
@@ -308,7 +289,6 @@ exports.cancelOrder = async (req, res) => {
     }
 };
 
-// Xóa đơn hàng hoàn toàn (ADMIN)
 exports.removeOrder = async (req, res) => {
     try {
         const order = await Order.findById(req.params.id);
@@ -320,20 +300,16 @@ exports.removeOrder = async (req, res) => {
             });
         }
         
-        // Nếu đơn hàng không phải đã bị hủy, cập nhật lại số lượng sản phẩm trong kho
         if (order.orderStatus !== 'Cancelled' && order.orderStatus !== 'Delivered') {
-            // Cập nhật lại số lượng sản phẩm trong kho
             for (const item of order.orderItems) {
                 const product = await Product.findById(item.product);
                 if (product) {
-                    // Trả lại số lượng sản phẩm vào kho
                     product.stock += item.quantity;
                     await product.save({ validateBeforeSave: false });
                 }
             }
         }
 
-        // Xóa hoàn toàn đơn hàng khỏi database
         await Order.findByIdAndDelete(req.params.id);
 
         res.status(200).json({

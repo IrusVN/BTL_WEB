@@ -1,7 +1,6 @@
 const Comment = require('../models/Comment');
 const Product = require('../models/Product');
 
-// Lấy tất cả bình luận của một sản phẩm
 exports.getProductComments = async (req, res) => {
     try {
         const { productId } = req.params;
@@ -23,7 +22,6 @@ exports.getProductComments = async (req, res) => {
     }
 };
 
-// Thêm bình luận mới
 exports.addComment = async (req, res) => {
     try {
         const { productId } = req.params;
@@ -35,7 +33,6 @@ exports.addComment = async (req, res) => {
         console.log('Content:', content);
         console.log('Rating:', rating);
         
-        // Kiểm tra xem sản phẩm có tồn tại không
         const product = await Product.findById(productId);
         if (!product) {
             return res.status(404).json({
@@ -53,7 +50,6 @@ exports.addComment = async (req, res) => {
         
         await newComment.save();
         
-        // Lấy thông tin bình luận kèm thông tin người dùng
         const populatedComment = await Comment.findById(newComment._id)
             .populate('user', 'name avatar');
             
@@ -71,17 +67,14 @@ exports.addComment = async (req, res) => {
     }
 };
 
-// Sửa bình luận
 exports.updateComment = async (req, res) => {
     try {
         const { commentId } = req.params;
         const { content, rating } = req.body;
         const userId = req.user._id;
         
-        // Tìm bình luận
         let comment = await Comment.findById(commentId);
         
-        // Kiểm tra xem bình luận có tồn tại không
         if (!comment) {
             return res.status(404).json({
                 success: false,
@@ -89,7 +82,6 @@ exports.updateComment = async (req, res) => {
             });
         }
         
-        // Kiểm tra xem người dùng có quyền sửa bình luận không
         if (comment.user.toString() !== userId.toString()) {
             return res.status(403).json({
                 success: false,
@@ -97,7 +89,6 @@ exports.updateComment = async (req, res) => {
             });
         }
         
-        // Cập nhật bình luận
         if (content) comment.content = content;
         if (rating) comment.rating = rating;
         
@@ -120,16 +111,13 @@ exports.updateComment = async (req, res) => {
     }
 };
 
-// Xóa bình luận
 exports.deleteComment = async (req, res) => {
     try {
         const { commentId } = req.params;
         const userId = req.user._id;
         
-        // Tìm bình luận
         const comment = await Comment.findById(commentId);
         
-        // Kiểm tra xem bình luận có tồn tại không
         if (!comment) {
             return res.status(404).json({
                 success: false,
@@ -137,7 +125,6 @@ exports.deleteComment = async (req, res) => {
             });
         }
         
-        // Chỉ có admin mới có quyền xóa bình luận
         if (req.user.role !== 'admin') {
             return res.status(403).json({
                 success: false,

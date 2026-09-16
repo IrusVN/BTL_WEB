@@ -455,7 +455,6 @@
     }
 }
 
-// Animations
 @keyframes init {
     0% {
         width: 0px;
@@ -627,7 +626,6 @@
     }
 }
 
-// Media Queries
 @media screen and (min-aspect-ratio: 4/3) {
     .wrapper {
         background-size: 100% auto;
@@ -638,7 +636,6 @@
     }
 }
 
-// Media Queries for mobile
 @media screen and (max-width: 767px) {
     .wrapper {
         background: #bcdee7 url('../../img/backgroung-info.jpg') no-repeat center center fixed;

@@ -72,7 +72,6 @@ const productSchema = new mongoose.Schema({
             }
         }
     ],
-    // Các trường tùy chỉnh của store
     brand: {
         type: String,
         default: ''

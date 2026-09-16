@@ -5,10 +5,12 @@ import classNames from 'classnames/bind';
 import { useAuth } from '../../context/AuthContext.js';
 import { updatePassword } from '../../services/authService.js';
 import { showToast } from '../../components/Toast/index.js';
+import { useHead } from '../../hooks/useHead.js';
 
 const cx = classNames.bind(styles);
 
 const ChangePassword = () => {
+    useHead('Đổi mật khẩu');
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -37,7 +39,6 @@ const ChangePassword = () => {
       [name]: value
     });
 
-    // Clear error when user types
     if (formErrors[name]) {
       setFormErrors({
         ...formErrors,
@@ -54,13 +55,11 @@ const ChangePassword = () => {
       confirmPassword: ''
     };
 
-    // Validate old password
     if (!formData.oldPassword.trim()) {
       errors.oldPassword = 'Vui lòng nhập mật khẩu hiện tại';
       isValid = false;
     }
 
-    // Validate new password
     if (!formData.newPassword.trim()) {
       errors.newPassword = 'Vui lòng nhập mật khẩu mới';
       isValid = false;
@@ -69,7 +68,6 @@ const ChangePassword = () => {
       isValid = false;
     }
 
-    // Validate confirm password
     if (!formData.confirmPassword.trim()) {
       errors.confirmPassword = 'Vui lòng xác nhận mật khẩu mới';
       isValid = false;
@@ -99,12 +97,10 @@ const ChangePassword = () => {
       });
 
       if (response.success) {
-        // Lưu token mới vào localStorage
         if (response.token) {
           localStorage.setItem('token', response.token);
         }
         
-        // Reset form sau khi thành công
         setFormData({
           oldPassword: '',
           newPassword: '',

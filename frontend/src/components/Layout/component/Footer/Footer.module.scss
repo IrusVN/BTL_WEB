@@ -1,200 +1,192 @@
-.new_footer_area {
-  background: #fbfbfd;
-  position: relative;
-}
 
-.hide_for_small {
-  width: 100%;
-}
-
-.grid {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 0 15px;
-}
-
-.new_footer_top {
-  padding: 120px 0px 200px;
-  position: relative;
-  overflow-x: hidden;
+.footer {
+  background: var(--color-bg);
+  border-top: 1px solid transparent;
+  border-image: linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.4), transparent) 1;
+  padding-top: var(--section-gap);
 }
 
 .container {
-  max-width: 1200px;
+  max-width: var(--container-max);
   margin: 0 auto;
-  padding: 0 15px;
+  padding: 0 var(--gutter);
 }
 
-.row {
-  display: flex;
-  flex-wrap: wrap;
-  margin: 0 -15px;
+.footer-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 48px var(--gutter);
+  padding-bottom: 48px;
 }
 
-.col-new {
-  padding: 0 15px;
-}
-
-.l-3 {
-  flex: 0 0 25%;
-  max-width: 25%;
-}
-
-.f_widget {
-  margin-bottom: 30px;
-}
-
-.company_widget {
-  p {
-    font-size: 16px;
-    font-weight: 400;
-    line-height: 28px;
-    color: #6a6a77;
-    margin-bottom: 20px;
-  }
-}
-
-.f-title {
-  margin-bottom: 30px;
-  color: #263b5e;
-}
-
-.f_600 {
-  font-weight: 600;
-}
-
-.f_size_18 {
-  font-size: 18px;
-}
-
-.form-control {
-  width: 100%;
-  background: #fff;
-  border: 1px solid #e2e2eb;
-  padding: 10px 20px;
-  border-radius: 4px;
+.widget-title {
   font-size: 15px;
-  color: #222d39;
-  margin-bottom: 15px;
+  font-weight: 600;
+  color: var(--color-text);
+  margin: 0 0 16px;
 }
 
-.btn_get {
-  font-size: 14px;
-  padding: 12px 25px;
-  border-radius: 4px;
-  border: none;
-  background: #6c5ce7;
-  color: #fff;
-  cursor: pointer;
-  transition: all 0.3s;
-  &:hover {
-    background: #5548c7;
-  }
+.widget-text {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  margin: 0 0 20px;
 }
 
-.f_list {
+.widget-list {
   list-style: none;
   padding: 0;
   margin: 0;
+
   li {
-    margin-bottom: 15px;
+    margin-bottom: 10px;
+
     a {
-      color: #6a6a77;
+      font-size: 13px;
+      color: var(--color-text-secondary);
       text-decoration: none;
-      transition: color 0.3s;
+      transition: color var(--duration-micro) ease;
+
       &:hover {
-        color: #5548c7;
+        color: var(--color-text);
       }
     }
   }
 }
 
-.f_social_icon {
+.subscribe {
+  display: flex;
+  gap: 8px;
+}
+
+.subscribe-input {
+  flex: 1;
+  min-width: 0;
+  height: 40px;
+  padding: 0 16px;
+  background: var(--tint-fill);
+  border: 1px solid var(--color-hairline);
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-family: inherit;
+  color: var(--color-text);
+
+  &::placeholder {
+    color: var(--color-text-secondary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+  }
+}
+
+.subscribe-btn {
+  height: 40px;
+  padding: 0 20px;
+  background-color: var(--color-cta);
+  color: var(--color-cta-text);
+  border: none;
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color var(--duration-micro) ease;
+
+  &:hover {
+    background-color: var(--color-cta-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+  }
+}
+
+.social {
+  display: flex;
+  gap: 10px;
+
   a {
-    width: 44px;
-    height: 44px;
-    line-height: 44px;
-    font-size: 24px;
-    background: transparent;
-    border: 1px solid #e2e2eb;
-    display: inline-block;
-    color: #6a6a77;
-    text-align: center;
-    margin-right: 8px;
-    border-radius: 3px;
-    transition: all 0.3s;
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    color: var(--color-text-secondary);
+    background: var(--tint-fill);
+    border: 1px solid transparent;
+    border-radius: var(--radius-full);
+    transition:
+      color var(--duration-micro) ease,
+      border-color var(--duration-micro) ease;
+
     &:hover {
-      background: #5548c7;
-      border-color: #5548c7;
-      color: #fff;
+      color: var(--color-text);
+      border-color: var(--color-gold);
     }
   }
 }
 
-.footer_bg {
-  position: absolute;
-  bottom: 0;
-  background: url('../../../../img/footer_bg.png') no-repeat scroll center 0;
-  width: 100%;
-  height: 266px;
-}
+.footer-bottom {
+  border-top: 1px solid var(--color-hairline);
 
-.footer_bg_one {
-  background: url('../../../../img/volks.gif') no-repeat center center;
-  width: 330px;
-  height: 105px;
-  background-size: 100%;
-  position: absolute;
-  bottom: 0;
-  left: 30%;
-  animation: myfirst 22s linear infinite;
-}
-
-.footer_bg_two {
-  background: url('../../../../img/cyclist.gif') no-repeat center center;
-  width: 88px;
-  height: 100px;
-  background-size: 100%;
-  bottom: 0;
-  left: 38%;
-  position: absolute;
-  animation: myfirst 30s linear infinite;
-}
-
-@keyframes myfirst {
-  0% {
-    left: -25%;
+  .container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 8px 24px;
+    padding-top: 20px;
+    padding-bottom: 20px;
   }
-  100% {
-    left: 100%;
-  }
-}
 
-.footer_bottom {
-  font-size: 14px;
-  font-weight: 300;
-  line-height: 20px;
-  color: #7f88a6;
-  padding: 27px 0px;
-  text-align: center;
   p {
-    margin-bottom: 0;
+    margin: 0;
+    font-size: 12px;
+    color: var(--color-text-secondary);
+
     a {
-      color: #5548c7;
+      color: var(--color-text-secondary);
       text-decoration: none;
+      transition: color var(--duration-micro) ease;
+
       &:hover {
-        color: #3d3696;
+        color: var(--color-text-secondary);
       }
     }
   }
 }
 
-@media (max-width: 768px) {
-  .hide_for_small {
-    display: none;
+@media (max-width: 992px) {
+  .footer-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
-  .l-3 {
-    flex: 0 0 100%;
-    max-width: 100%;
+}
+
+@media (max-width: 576px) {
+  .footer {
+    padding-top: var(--section-gap);
+  }
+
+  .footer-grid {
+    grid-template-columns: 1fr;
+    gap: 32px;
+  }
+
+  .subscribe {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .subscribe-btn {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    transition: none !important;
   }
 }

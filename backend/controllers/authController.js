@@ -1,8 +1,9 @@
 const User = require('../models/User');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
+const { createTransporter } = require('../services/emailService');
 
-// Đăng ký người dùng
 exports.register = async (req, res) => {
     try {
         const { name, email, password } = req.body;
@@ -23,7 +24,6 @@ exports.register = async (req, res) => {
 
         const token = user.getJwtToken();
 
-        // Thiết lập cookie
         const options = {
             expires: new Date(Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000 || 7 * 24 * 60 * 60 * 1000),
             httpOnly: true
@@ -44,7 +44,6 @@ exports.register = async (req, res) => {
     }
 };
 
-// Đăng nhập
 exports.login = async (req, res) => {
     try {
         const { email, password } = req.body;
@@ -76,7 +75,6 @@ exports.login = async (req, res) => {
 
         const token = user.getJwtToken();
 
-        // Thiết lập cookie
         const options = {
             expires: new Date(Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000 || 7 * 24 * 60 * 60 * 1000),
             httpOnly: true
@@ -97,7 +95,6 @@ exports.login = async (req, res) => {
     }
 };
 
-// Lấy thông tin người dùng hiện tại
 exports.getUserProfile = async (req, res) => {
     try {
         const user = await User.findById(req.user.id);
@@ -114,7 +111,6 @@ exports.getUserProfile = async (req, res) => {
     }
 };
 
-// Cập nhật thông tin người dùng
 exports.updateProfile = async (req, res) => {
     try {
         const newUserData = {
@@ -122,12 +118,10 @@ exports.updateProfile = async (req, res) => {
             email: req.body.email
         };
 
-        // Cập nhật số điện thoại nếu có
         if (req.body.phoneNumber) {
             newUserData.phoneNumber = req.body.phoneNumber;
         }
 
-        // Cập nhật địa chỉ nếu có
         if (req.body.address && Array.isArray(req.body.address)) {
             newUserData.address = req.body.address;
         }
@@ -149,7 +143,6 @@ exports.updateProfile = async (req, res) => {
     }
 };
 
-// Cập nhật mật khẩu người dùng
 exports.updatePassword = async (req, res) => {
     try {
         const { oldPassword, newPassword, confirmPassword } = req.body;
@@ -168,7 +161,6 @@ exports.updatePassword = async (req, res) => {
             });
         }
 
-        // Kiểm tra độ dài mật khẩu mới
         if (newPassword.length < 6) {
             return res.status(400).json({
                 success: false,
@@ -176,10 +168,8 @@ exports.updatePassword = async (req, res) => {
             });
         }
 
-        // Lấy thông tin người dùng cùng với mật khẩu
         const user = await User.findById(req.user.id).select('+password');
 
-        // Kiểm tra mật khẩu cũ
         const isPasswordMatched = await user.comparePassword(oldPassword);
 
         if (!isPasswordMatched) {
@@ -189,14 +179,11 @@ exports.updatePassword = async (req, res) => {
             });
         }
 
-        // Đặt mật khẩu mới và lưu
         user.password = newPassword;
         await user.save();
 
-        // Tạo token mới sau khi đổi mật khẩu
         const token = user.getJwtToken();
 
-        // Thiết lập cookie
         const options = {
             expires: new Date(Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000 || 7 * 24 * 60 * 60 * 1000),
             httpOnly: true
@@ -217,48 +204,41 @@ exports.updatePassword = async (req, res) => {
     }
 };
 
-// Cập nhật thiết lập của người dùng
 exports.updateSettings = async (req, res) => {
     try {
         const { notificationSettings, privacySettings, languagePreference, themePreference } = req.body;
-        
+
         const updateData = {};
-        
-        // Cập nhật thiết lập thông báo nếu có
+
         if (notificationSettings) {
             updateData.notificationSettings = notificationSettings;
         }
-        
-        // Cập nhật thiết lập quyền riêng tư nếu có
+
         if (privacySettings) {
             updateData.privacySettings = privacySettings;
         }
-        
-        // Cập nhật ngôn ngữ nếu có
+
         if (languagePreference) {
             updateData.languagePreference = languagePreference;
         }
-        
-        // Cập nhật giao diện nếu có
+
         if (themePreference) {
             updateData.themePreference = themePreference;
         }
-        
-        // Nếu không có dữ liệu để cập nhật, trả về lỗi
+
         if (Object.keys(updateData).length === 0) {
             return res.status(400).json({
                 success: false,
                 message: 'Không có dữ liệu để cập nhật'
             });
         }
-        
-        // Cập nhật người dùng trong cơ sở dữ liệu
+
         const user = await User.findByIdAndUpdate(
             req.user.id,
             { $set: updateData },
             { new: true, runValidators: true }
         );
-        
+
         res.status(200).json({
             success: true,
             message: 'Cập nhật thiết lập thành công',
@@ -272,7 +252,6 @@ exports.updateSettings = async (req, res) => {
     }
 };
 
-// Đăng xuất
 exports.logout = async (req, res) => {
     res.cookie('token', null, {
         expires: new Date(Date.now()),
@@ -285,10 +264,8 @@ exports.logout = async (req, res) => {
     });
 };
 
-// Hàm lấy tất cả users (chỉ admin mới được phép)
 exports.getAllUsers = async (req, res) => {
     try {
-        // Chỉ admin mới có quyền xem tất cả users
         if (req.user.role !== 'admin') {
             return res.status(403).json({
                 success: false,
@@ -297,7 +274,7 @@ exports.getAllUsers = async (req, res) => {
         }
 
         const users = await User.find().select('-password');
-        
+
         return res.status(200).json({
             success: true,
             users
@@ -311,10 +288,8 @@ exports.getAllUsers = async (req, res) => {
     }
 };
 
-// Hàm xóa user theo ID (chỉ admin mới được phép)
 exports.deleteUser = async (req, res) => {
     try {
-        // Chỉ admin mới có quyền xóa user
         if (req.user.role !== 'admin') {
             return res.status(403).json({
                 success: false,
@@ -323,8 +298,7 @@ exports.deleteUser = async (req, res) => {
         }
 
         const userId = req.params.id;
-        
-        // Kiểm tra nếu user cần xóa tồn tại
+
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({
@@ -333,7 +307,6 @@ exports.deleteUser = async (req, res) => {
             });
         }
 
-        // Không cho phép admin xóa chính mình
         if (user._id.toString() === req.user.id) {
             return res.status(400).json({
                 success: false,
@@ -342,7 +315,7 @@ exports.deleteUser = async (req, res) => {
         }
 
         await User.findByIdAndDelete(userId);
-        
+
         return res.status(200).json({
             success: true,
             message: 'Người dùng đã được xóa thành công'
@@ -356,10 +329,8 @@ exports.deleteUser = async (req, res) => {
     }
 };
 
-// Hàm cập nhật thông tin user (chỉ admin mới được phép)
 exports.updateUserByAdmin = async (req, res) => {
     try {
-        // Chỉ admin mới có quyền cập nhật user
         if (req.user.role !== 'admin') {
             return res.status(403).json({
                 success: false,
@@ -369,8 +340,7 @@ exports.updateUserByAdmin = async (req, res) => {
 
         const userId = req.params.id;
         const { name, email, role } = req.body;
-        
-        // Kiểm tra nếu user cần cập nhật tồn tại
+
         const user = await User.findById(userId);
         if (!user) {
             return res.status(404).json({
@@ -379,7 +349,6 @@ exports.updateUserByAdmin = async (req, res) => {
             });
         }
 
-        // Cập nhật thông tin
         const updatedData = {
             name: name || user.name,
             email: email || user.email,
@@ -391,7 +360,7 @@ exports.updateUserByAdmin = async (req, res) => {
             updatedData,
             { new: true, runValidators: true }
         ).select('-password');
-        
+
         return res.status(200).json({
             success: true,
             user: updatedUser,
@@ -404,4 +373,121 @@ exports.updateUserByAdmin = async (req, res) => {
             message: 'Đã xảy ra lỗi khi cập nhật thông tin người dùng'
         });
     }
-}; 
+};
+
+exports.forgotPassword = async (req, res) => {
+    try {
+        const { email } = req.body;
+
+        const user = await User.findOne({ email });
+
+        if (!user) {
+            return res.status(200).json({
+                success: true,
+                message: 'Nếu email tồn tại trong hệ thống, link đặt lại mật khẩu đã được gửi'
+            });
+        }
+
+        const resetToken = user.getResetPasswordToken();
+        await user.save({ validateBeforeSave: false });
+
+        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/login?action=forgotpassword&token=${resetToken}`;
+
+        const transporter = await createTransporter();
+        const mailOptions = {
+            from: `"Team2hand" <${process.env.EMAIL}>`,
+            to: user.email,
+            subject: 'Đặt lại mật khẩu Team2hand',
+            html: `
+              <div style="font-family: Arial, sans-serif; max-width: 560px; margin: 0 auto; padding: 24px;">
+                <h2 style="color: #D4AF37; margin-top: 0;">Đặt lại mật khẩu</h2>
+                <p>Chào <b>${user.name}</b>,</p>
+                <p>Bạn (hoặc ai đó) vừa yêu cầu đặt lại mật khẩu cho tài khoản Team2hand của bạn.</p>
+                <p>Bấm nút bên dưới để đặt lại mật khẩu. Link có hiệu lực <b>15 phút</b>.</p>
+                <p style="text-align: center; margin: 28px 0;">
+                  <a href="${resetUrl}"
+                     style="background: #D4AF37; color: #0A0A0C; padding: 12px 28px; border-radius: 999px;
+                            text-decoration: none; font-weight: bold; display: inline-block;">
+                    Đặt lại mật khẩu
+                  </a>
+                </p>
+                <p style="color: #888; font-size: 13px;">Nếu bạn không yêu cầu, hãy bỏ qua email này — mật khẩu của bạn vẫn được giữ nguyên.</p>
+                <hr style="border: none; border-top: 1px solid #eee;">
+                <p style="color: #aaa; font-size: 12px;">© Team2hand — Email tự động, vui lòng không trả lời.</p>
+              </div>
+            `
+        };
+        await transporter.sendMail(mailOptions);
+
+        return res.status(200).json({
+            success: true,
+            message: 'Nếu email tồn tại trong hệ thống, link đặt lại mật khẩu đã được gửi'
+        });
+    } catch (error) {
+        console.error('Lỗi khi gửi email đặt lại mật khẩu:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Không thể gửi email đặt lại mật khẩu. Vui lòng thử lại sau.'
+        });
+    }
+};
+
+exports.resetPassword = async (req, res) => {
+    try {
+        const { token, password, confirmPassword } = req.body;
+
+        if (!token || !password || !confirmPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vui lòng nhập đầy đủ thông tin'
+            });
+        }
+
+        if (password !== confirmPassword) {
+            return res.status(400).json({
+                success: false,
+                message: 'Mật khẩu mới không khớp'
+            });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'Mật khẩu mới phải có ít nhất 6 ký tự'
+            });
+        }
+
+        const hashedToken = crypto
+            .createHash('sha256')
+            .update(token)
+            .digest('hex');
+
+        const user = await User.findOne({
+            resetPasswordToken: hashedToken,
+            resetPasswordExpire: { $gt: Date.now() }
+        });
+
+        if (!user) {
+            return res.status(400).json({
+                success: false,
+                message: 'Link đặt lại mật khẩu không hợp lệ hoặc đã hết hạn'
+            });
+        }
+
+        user.password = password;
+        user.resetPasswordToken = undefined;
+        user.resetPasswordExpire = undefined;
+        await user.save();
+
+        return res.status(200).json({
+            success: true,
+            message: 'Đặt lại mật khẩu thành công'
+        });
+    } catch (error) {
+        console.error('Lỗi khi đặt lại mật khẩu:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Đã xảy ra lỗi khi đặt lại mật khẩu'
+        });
+    }
+};

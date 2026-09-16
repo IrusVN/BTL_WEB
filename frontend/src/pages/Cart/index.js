@@ -7,10 +7,12 @@ import { showToast } from '../../components/Toast/index.js';
 import axios from 'axios';
 import { API_URL } from '../../services/authService.js';
 import { useNavigate } from 'react-router-dom';
+import { useHead } from '../../hooks/useHead.js';
 
 const cx = classNames.bind(styles);
 
 function Cart() {
+    useHead('Giỏ hàng');
     const [cartItems, setCartItems] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -19,7 +21,6 @@ function Cart() {
     const [isApplying, setIsApplying] = useState(false);
     const navigate = useNavigate();
 
-    // Kiểm tra đăng nhập và lấy dữ liệu giỏ hàng
     useEffect(() => {
         const checkAuth = async () => {
             const token = localStorage.getItem('token');
@@ -30,14 +31,12 @@ function Cart() {
             }
 
             try {
-                // Kiểm tra xác thực
                 const authResponse = await axios.get(`${API_URL}/auth/me`, {
                     headers: { Authorization: `Bearer ${token}` }
                 });
 
                 if (authResponse.data.success) {
                     setIsAuthenticated(true);
-                    // Sau khi xác thực thành công, lấy giỏ hàng
                     fetchCart(token);
                 } else {
                     setIsAuthenticated(false);
@@ -51,8 +50,7 @@ function Cart() {
         };
 
         checkAuth();
-        
-        // Khôi phục thông tin giảm giá từ localStorage nếu có
+
         const storedDiscount = localStorage.getItem('discount');
         if (storedDiscount) {
             try {
@@ -65,7 +63,6 @@ function Cart() {
         }
     }, []);
 
-    // Lấy dữ liệu giỏ hàng từ API
     const fetchCart = async (token) => {
         try {
             const response = await axios.get(`${API_URL}/cart`, {
@@ -77,7 +74,6 @@ function Cart() {
             });
 
             if (response.data.success) {
-                // Chuyển đổi dữ liệu từ API để phù hợp với format hiển thị
                 const formattedItems = response.data.cart.items.map(item => ({
                     id: item._id,
                     productId: item.product._id,
@@ -105,12 +101,9 @@ function Cart() {
         }
     };
 
-    // Xử lý thay đổi số lượng sản phẩm
     async function handleQuantityChange(id, newQuantity) {
-        // Tìm sản phẩm trong giỏ hàng
         const item = cartItems.find(item => item.id === id);
         
-        // Kiểm tra số lượng hợp lệ
         if (newQuantity < 1) return;
         if (item && newQuantity > item.stock) {
             showToast({
@@ -124,7 +117,6 @@ function Cart() {
 
         try {
             const token = localStorage.getItem('token');
-            // Gọi API cập nhật giỏ hàng
             const response = await axios.put(
                 `${API_URL}/cart/update`,
                 { 
@@ -141,7 +133,6 @@ function Cart() {
             );
 
             if (response.data.success) {
-                // Cập nhật state
         setCartItems(prevItems => 
             prevItems.map(item => 
                 item.id === id ? {...item, quantity: newQuantity} : item
@@ -155,7 +146,6 @@ function Cart() {
             duration: 2000
         });
                 
-                // Kích hoạt sự kiện cập nhật số lượng giỏ hàng
                 window.dispatchEvent(new Event('cart-updated'));
             } else {
                 showToast({
@@ -176,11 +166,9 @@ function Cart() {
         }
     }
 
-    // Xử lý xóa sản phẩm khỏi giỏ hàng
     async function handleRemoveItem(id) {
         try {
             const token = localStorage.getItem('token');
-            // Gọi API xóa sản phẩm khỏi giỏ hàng
             const response = await axios.delete(
                 `${API_URL}/cart/remove/${id}`,
                 {
@@ -193,7 +181,6 @@ function Cart() {
             );
 
             if (response.data.success) {
-                // Cập nhật state
         setCartItems(prevItems => prevItems.filter(item => item.id !== id));
                 
         showToast({
@@ -203,7 +190,6 @@ function Cart() {
             duration: 3000
         });
                 
-                // Kích hoạt sự kiện cập nhật số lượng giỏ hàng
                 window.dispatchEvent(new Event('cart-updated'));
             } else {
                 showToast({
@@ -224,12 +210,10 @@ function Cart() {
         }
     }
 
-    // Tính tổng tiền
     function calculateTotal() {
         return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
     }
 
-    // Tính giá trị giảm giá
     const calculateDiscount = () => {
         if (!appliedDiscount) return 0;
         
@@ -244,14 +228,12 @@ function Cart() {
         }
     };
     
-    // Tính tổng thanh toán sau khi giảm giá
     const calculateFinalTotal = () => {
         const subtotal = calculateTotal();
         const discount = calculateDiscount();
         return subtotal - discount;
     };
 
-    // Xử lý áp dụng mã giảm giá
     const handleApplyCoupon = () => {
         if (!couponCode.trim()) {
             showToast({
@@ -265,9 +247,7 @@ function Cart() {
         
         setIsApplying(true);
         
-        // Giả lập gọi API kiểm tra mã giảm giá
         setTimeout(() => {
-            // Mô phỏng các mã giảm giá
             const coupons = {
                 'SALE10': { code: 'SALE10', name: 'Giảm 10%', type: 'percent', value: 10 },
                 'SALE20': { code: 'SALE20', name: 'Giảm 20%', type: 'percent', value: 20 },
@@ -299,7 +279,6 @@ function Cart() {
         }, 1000);
     };
 
-    // Xử lý xóa mã giảm giá
     const handleRemoveCoupon = () => {
         setAppliedDiscount(null);
         setCouponCode('');
@@ -311,9 +290,7 @@ function Cart() {
         });
     };
 
-    // Chuyển đến trang thanh toán
     function handleCheckout() {
-        // Lưu thông tin giảm giá vào localStorage nếu có
         if (appliedDiscount) {
             localStorage.setItem('discount', JSON.stringify(appliedDiscount));
             localStorage.setItem('discountAmount', calculateDiscount().toString());
@@ -333,7 +310,6 @@ function Cart() {
         navigate('/checkout');
     }
 
-    // Hiển thị giỏ hàng trống
     function renderEmptyCart() {
         return (
             <div className={cx('emptyCart')}>
@@ -375,7 +351,6 @@ function Cart() {
         );
     }
 
-    // Hiển thị từng sản phẩm trong giỏ hàng
     function renderCartItem(item) {
         return (
             <div key={item.id} className={cx('cartItem')}>
@@ -415,7 +390,6 @@ function Cart() {
         );
     }
 
-    // Hiển thị giỏ hàng có sản phẩm
     function renderCart() {
         return (
             <div className={cx('container')}>
@@ -521,7 +495,6 @@ function Cart() {
         );
     }
 
-    // Hiển thị thông báo đăng nhập nếu chưa đăng nhập
     function renderLoginRequired() {
         return (
             <div className={cx('loginRequired')}>
@@ -539,17 +512,14 @@ function Cart() {
         );
     }
 
-    // Hiển thị trạng thái đang tải
     if (loading) {
         return <div className={cx('loading')}>Đang tải...</div>;
     }
 
-    // Chưa đăng nhập
     if (!isAuthenticated) {
         return renderLoginRequired();
     }
 
-    // Giỏ hàng trống hoặc có sản phẩm
     return (
         <div className={cx('cartPage')}>
             {cartItems.length === 0 ? renderEmptyCart() : renderCart()}

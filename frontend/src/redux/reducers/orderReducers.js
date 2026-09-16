@@ -19,7 +19,6 @@ import {
   PAYMENT_RESET
 } from '../constants/orderConstants.js';
 
-// Reducer để quản lý danh sách đơn hàng của người dùng
 export const orderListMyReducer = (state = { orders: [] }, action) => {
   switch (action.type) {
     case ORDER_LIST_MY_REQUEST:
@@ -43,7 +42,6 @@ export const orderListMyReducer = (state = { orders: [] }, action) => {
   }
 };
 
-// Reducer để quản lý chi tiết đơn hàng
 export const orderDetailsReducer = (
   state = { loading: true, orderItems: [], shippingAddress: {} },
   action
@@ -69,7 +67,6 @@ export const orderDetailsReducer = (
   }
 };
 
-// Reducer để quản lý quá trình checkout
 export const checkoutReducer = (state = {}, action) => {
   switch (action.type) {
     case CHECKOUT_REQUEST:
@@ -85,7 +82,6 @@ export const checkoutReducer = (state = {}, action) => {
   }
 };
 
-// Reducer để quản lý quá trình thanh toán
 export const paymentReducer = (state = {}, action) => {
   switch (action.type) {
     case PAYMENT_REQUEST:

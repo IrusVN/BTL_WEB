@@ -3,10 +3,12 @@ import { Link } from 'react-router-dom';
 import * as styles from './Info.module.scss';
 import classNames from 'classnames/bind';
 import accountIcon from '../../img/account-icon.png';
+import { useHead } from '../../hooks/useHead.js';
 
 const cx = classNames.bind(styles);
 
 const Info = () => {
+    useHead('Về chúng tôi');
   return (
     <div className={cx('wrapper')}>
       <div className={cx('profiles-container')}>

@@ -54,14 +54,12 @@ export const useSlider = () => {
         }
     ];
 
-    // Hàm xử lý cho autoplay
     const autoPlay = () => {
         if (!isUserInteracting) {
             setCurrentSlide((prev) => (prev + 1) % slides.length);
         }
     };
 
-    // Xử lý autoplay: Chỉ autoplay khi không có tương tác của người dùng
     useEffect(() => {
         autoPlayRef.current = autoPlay;
     }, [isUserInteracting]);
@@ -77,18 +75,15 @@ export const useSlider = () => {
             }, isMobileRef.current ? 4000 : 5000);
         };
         
-        // Bắt đầu autoplay nếu không phải mobile
         if (typeof window !== 'undefined') {
             startAutoPlay();
             
-            // Lắng nghe sự kiện scroll toàn trang
             const handlePageScroll = () => {
                 setIsUserInteracting(true);
                 if (autoPlayIntervalRef.current) {
                     clearInterval(autoPlayIntervalRef.current);
                 }
                 
-                // Sau 10 giây không tương tác, khôi phục autoplay
                 setTimeout(() => {
                     setIsUserInteracting(false);
                     startAutoPlay();
@@ -97,7 +92,6 @@ export const useSlider = () => {
             
             window.addEventListener('scroll', handlePageScroll);
             
-            // Cleanup
             return () => {
                 if (autoPlayIntervalRef.current) {
                     clearInterval(autoPlayIntervalRef.current);
@@ -107,12 +101,10 @@ export const useSlider = () => {
         }
     }, []);
 
-    // Xử lý sự kiện chạm (cho mobile)
     const handleTouchStart = (e) => {
         setIsUserInteracting(true);
         setTouchStart(e.targetTouches[0].clientX);
         
-        // Dừng autoplay khi người dùng tương tác
         if (autoPlayIntervalRef.current) {
             clearInterval(autoPlayIntervalRef.current);
         }
@@ -124,18 +116,14 @@ export const useSlider = () => {
 
     const handleTouchEnd = () => {
         if (touchStart - touchEnd > 75) {
-            // vuốt sang trái (next slide)
             goToNextSlide();
         } else if (touchStart - touchEnd < -75) {
-            // vuốt sang phải (prev slide)
             goToPrevSlide();
         }
         
-        // Sau 10 giây không tương tác, đánh dấu là không còn tương tác
         setTimeout(() => {
             setIsUserInteracting(false);
             
-            // Khôi phục autoplay
             if (autoPlayIntervalRef.current) {
                 clearInterval(autoPlayIntervalRef.current);
             }
@@ -150,12 +138,10 @@ export const useSlider = () => {
         setIsUserInteracting(true);
         setCurrentSlide(index);
         
-        // Tạm dừng autoplay khi người dùng tương tác
         if (autoPlayIntervalRef.current) {
             clearInterval(autoPlayIntervalRef.current);
         }
         
-        // Khôi phục autoplay sau 10 giây
         setTimeout(() => {
             setIsUserInteracting(false);
             
@@ -173,7 +159,6 @@ export const useSlider = () => {
         setIsUserInteracting(true);
         setCurrentSlide((prev) => (prev - 1 + slides.length) % slides.length);
         
-        // Logic tương tự như goToSlide
         if (autoPlayIntervalRef.current) {
             clearInterval(autoPlayIntervalRef.current);
         }
@@ -195,7 +180,6 @@ export const useSlider = () => {
         setIsUserInteracting(true);
         setCurrentSlide((prev) => (prev + 1) % slides.length);
         
-        // Logic tương tự như goToSlide
         if (autoPlayIntervalRef.current) {
             clearInterval(autoPlayIntervalRef.current);
         }
@@ -213,7 +197,6 @@ export const useSlider = () => {
         }, 10000);
     };
 
-    // Cập nhật kích thước màn hình khi resize
     useEffect(() => {
         const handleResize = () => {
             isMobileRef.current = window.innerWidth <= 768;

@@ -5,10 +5,12 @@ import classNames from 'classnames/bind';
 import { useAuth } from '../../context/AuthContext.js';
 import { updateProfile } from '../../services/authService.js';
 import { showToast } from '../../components/Toast/index.js';
+import { useHead } from '../../hooks/useHead.js';
 
 const cx = classNames.bind(styles);
 
 const Profile = () => {
+    useHead('Hồ sơ');
   const { user, login } = useAuth();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
@@ -30,7 +32,6 @@ const Profile = () => {
       return;
     }
 
-    // Điền dữ liệu người dùng hiện tại vào form
     setFormData({
       name: user.name || '',
       email: user.email || '',
@@ -68,7 +69,6 @@ const Profile = () => {
     setLoading(true);
 
     try {
-      // Chuẩn bị dữ liệu để gửi
       const userData = {
         name: formData.name,
         email: formData.email,
@@ -83,7 +83,6 @@ const Profile = () => {
 
       const response = await updateProfile(userData);
       if (response.success) {
-        // Cập nhật thông tin người dùng trong context
         login(response.user, localStorage.getItem('token'));
         
         showToast({

@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { API_URL } from './authService.js';
 
-// Lấy tất cả đơn hàng của người dùng đã đăng nhập
 export const getMyOrders = async () => {
     try {
         const token = localStorage.getItem('token');
@@ -20,7 +19,6 @@ export const getMyOrders = async () => {
     }
 };
 
-// Lấy chi tiết đơn hàng theo ID
 export const getOrderDetails = async (orderId) => {
     try {
         const token = localStorage.getItem('token');
@@ -39,7 +37,6 @@ export const getOrderDetails = async (orderId) => {
     }
 };
 
-// Tạo đơn hàng mới
 export const createOrder = async (orderData) => {
     try {
         const token = localStorage.getItem('token');
@@ -59,7 +56,6 @@ export const createOrder = async (orderData) => {
     }
 };
 
-// Hủy đơn hàng
 export const cancelOrder = async (orderId) => {
     try {
         const token = localStorage.getItem('token');
@@ -78,7 +74,6 @@ export const cancelOrder = async (orderId) => {
     }
 };
 
-// Gửi lại email xác nhận đơn hàng
 export const resendOrderConfirmationEmail = async (orderId) => {
     try {
         const token = localStorage.getItem('token');

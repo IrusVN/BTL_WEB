@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 
 const userSchema = new mongoose.Schema({
     name: {
@@ -88,24 +89,31 @@ const userSchema = new mongoose.Schema({
     resetPasswordExpire: Date
 });
 
-// Mã hóa mật khẩu trước khi lưu
 userSchema.pre('save', async function(next) {
     if (!this.isModified('password')) {
-        next();
+        return next();
     }
     this.password = await bcrypt.hash(this.password, 10);
 });
 
-// So sánh mật khẩu
 userSchema.methods.comparePassword = async function(enteredPassword) {
     return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// Tạo JWT token
 userSchema.methods.getJwtToken = function() {
     return jwt.sign({ id: this._id }, process.env.JWT_SECRET, {
         expiresIn: process.env.JWT_EXPIRE
     });
+};
+
+userSchema.methods.getResetPasswordToken = function() {
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    this.resetPasswordExpire = Date.now() + 15 * 60 * 1000;
+    this.resetPasswordToken = crypto
+        .createHash('sha256')
+        .update(resetToken)
+        .digest('hex');
+    return resetToken;
 };
 
 module.exports = mongoose.model('User', userSchema); 

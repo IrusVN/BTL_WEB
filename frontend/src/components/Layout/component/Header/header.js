@@ -11,11 +11,8 @@ export const useHeaderLogic = () => {
     const navigate = useNavigate();
 
     useEffect(() => {
-        // Lấy thông tin người dùng từ localStorage
         const token = localStorage.getItem('token');
         if (token) {
-            // Giả sử token chứa thông tin người dùng
-            // Trong thực tế, bạn nên gọi API để lấy thông tin người dùng
             const userData = JSON.parse(atob(token.split('.')[1]));
             setUser(userData);
         }

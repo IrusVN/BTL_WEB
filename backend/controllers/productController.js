@@ -1,6 +1,5 @@
 const Product = require('../models/Product');
 
-// Tạo sản phẩm mới
 exports.createProduct = async (req, res) => {
     try {
         console.log('Creating product...');
@@ -9,14 +8,12 @@ exports.createProduct = async (req, res) => {
         console.log('User:', req.user);
         console.log('Request body:', req.body);
         
-        // Đảm bảo rằng có seller
         if (!req.body.seller && req.user) {
             req.body.seller = req.user.id;
         } else if (!req.body.seller) {
-            req.body.seller = "unknown"; // Giá trị mặc định nếu không có seller
+            req.body.seller = "unknown";
         }
         
-        // Tạo mã code ngẫu nhiên nếu không có
         if (!req.body.code || req.body.code === '') {
             req.body.code = 'PROD-' + Math.floor(Math.random() * 1000000).toString();
         }
@@ -30,7 +27,6 @@ exports.createProduct = async (req, res) => {
                 product
             });
         } catch (err) {
-            // Nếu lỗi trùng lặp code, thử lại với code khác
             if (err.code === 11000 && err.keyPattern && err.keyPattern.code) {
                 req.body.code = 'PROD-' + Math.floor(Math.random() * 1000000).toString();
                 const product = await Product.create(req.body);
@@ -53,14 +49,12 @@ exports.createProduct = async (req, res) => {
     }
 };
 
-// Lấy tất cả sản phẩm (hỗ trợ lọc theo brand và giới hạn số lượng qua query params)
 exports.getProducts = async (req, res) => {
     try {
         const { brand, limit } = req.query;
 
         const filter = {};
         if (brand) {
-            // Escape ký tự đặc biệt để tránh regex injection
             const escapedBrand = brand.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
             filter.brand = new RegExp(`^\\s*${escapedBrand}\\s*$`, 'i');
         }
@@ -87,7 +81,86 @@ exports.getProducts = async (req, res) => {
     }
 };
 
-// Lấy chi tiết sản phẩm
+
+const SUGGEST_LIMIT = 5;
+const SUGGEST_TTL = 5 * 60 * 1000;
+let suggestLightCache = null;
+let suggestLightCacheAt = 0;
+const suggestThumbCache = new Map();
+
+async function getSuggestLightProducts() {
+    if (suggestLightCache && Date.now() - suggestLightCacheAt < SUGGEST_TTL) {
+        return suggestLightCache;
+    }
+    const products = await Product.find({}, 'name description price').lean();
+    suggestLightCache = products;
+    suggestLightCacheAt = Date.now();
+    suggestThumbCache.clear();
+    return products;
+}
+
+async function hydrateThumbs(ids) {
+    const missing = ids.filter((id) => !suggestThumbCache.has(String(id)));
+    if (missing.length === 0) return;
+
+    const rows = await Product.aggregate([
+        { $match: { _id: { $in: missing } } },
+        { $project: { thumb: { $arrayElemAt: ['$images', 0] } } }
+    ]);
+    rows.forEach((row) => {
+        suggestThumbCache.set(String(row._id), (row.thumb && row.thumb.url) || null);
+    });
+}
+
+exports.getProductSuggestions = async (req, res) => {
+    try {
+        const q = String(req.query.q || '').trim().toLowerCase().slice(0, 100);
+        if (q.length < 2) {
+            return res.status(200).json({ success: true, count: 0, suggestions: [] });
+        }
+
+        const words = q.split(/\s+/).filter(Boolean);
+        const scored = (await getSuggestLightProducts())
+            .map((product) => {
+                const name = product.name ? product.name.toLowerCase() : '';
+                const description = product.description ? product.description.toLowerCase() : '';
+                let score = 0;
+                words.forEach((word) => {
+                    if (name.includes(word)) score += 2;
+                    else if (description.includes(word)) score += 1;
+                });
+                return { product, score };
+            })
+            .filter((entry) => entry.score > 0)
+            .sort((a, b) => b.score - a.score)
+            .slice(0, SUGGEST_LIMIT);
+
+        if (scored.length === 0) {
+            return res.status(200).json({ success: true, count: 0, suggestions: [] });
+        }
+
+        await hydrateThumbs(scored.map((entry) => entry.product._id));
+
+        const suggestions = scored.map((entry) => ({
+            _id: entry.product._id,
+            name: entry.product.name,
+            price: entry.product.price,
+            thumb: suggestThumbCache.get(String(entry.product._id)) || null
+        }));
+
+        res.status(200).json({
+            success: true,
+            count: suggestions.length,
+            suggestions
+        });
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
 exports.getProductDetails = async (req, res) => {
     try {
         const product = await Product.findById(req.params.id);
@@ -111,7 +184,6 @@ exports.getProductDetails = async (req, res) => {
     }
 };
 
-// Cập nhật sản phẩm
 exports.updateProduct = async (req, res) => {
     try {
         let product = await Product.findById(req.params.id);
@@ -123,7 +195,6 @@ exports.updateProduct = async (req, res) => {
             });
         }
 
-        // Xử lý dữ liệu sản phẩm
         const productData = {
             name: req.body.name,
             description: req.body.description,
@@ -139,12 +210,10 @@ exports.updateProduct = async (req, res) => {
             size: req.body.size
         };
 
-        // Xử lý hình ảnh nếu có hình ảnh mới được gửi lên
         if (req.body.images && req.body.images.length > 0) {
             productData.images = req.body.images;
         }
 
-        // Cập nhật sản phẩm
         product = await Product.findByIdAndUpdate(req.params.id, productData, {
             new: true,
             runValidators: true
@@ -163,7 +232,6 @@ exports.updateProduct = async (req, res) => {
     }
 };
 
-// Xóa sản phẩm
 exports.deleteProduct = async (req, res) => {
     try {
         const product = await Product.findById(req.params.id);
@@ -189,7 +257,6 @@ exports.deleteProduct = async (req, res) => {
     }
 };
 
-// Tạo/Cập nhật đánh giá
 exports.createProductReview = async (req, res) => {
     try {
         const { rating, comment, productId } = req.body;
@@ -236,12 +303,10 @@ exports.createProductReview = async (req, res) => {
     }
 };
 
-// Lấy sản phẩm theo danh mục
 exports.getProductsByCategory = async (req, res) => {
     try {
         const { categoryId } = req.params;
         
-        // Truy vấn sản phẩm theo danh mục
         const products = await Product.find({ category: categoryId });
 
         res.status(200).json({

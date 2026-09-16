@@ -7,6 +7,7 @@ import { API_URL } from '../../services/authService.js';
 import { showToast } from '../../components/Toast/index.js';
 import { useAuth } from '../../context/AuthContext.js';
 import '@fortawesome/fontawesome-free/css/all.min.css';
+import { useHead } from '../../hooks/useHead.js';
 
 const cx = classNames.bind(styles);
 
@@ -37,6 +38,7 @@ const OrderStatusBadge = ({ status }) => {
 };
 
 const MyOrders = () => {
+    useHead('Đơn hàng của tôi');
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -70,8 +72,7 @@ const MyOrders = () => {
       });
       
       if (response.data.success) {
-        // Sort orders by date (newest first)
-        const sortedOrders = response.data.orders.sort((a, b) => 
+        const sortedOrders = response.data.orders.sort((a, b) =>
           new Date(b.createdAt) - new Date(a.createdAt)
         );
         setOrders(sortedOrders);
@@ -109,7 +110,6 @@ const MyOrders = () => {
   const handleCancelOrder = async () => {
     if (!selectedOrderId) return;
     
-    // Thay đổi trạng thái nút khi đang xử lý
     const confirmBtn = document.querySelector(`#confirm-cancel-btn`);
     if (confirmBtn) {
       confirmBtn.textContent = 'Đang xử lý...';
@@ -139,12 +139,10 @@ const MyOrders = () => {
           duration: 3000
         });
         
-        // Cập nhật trạng thái đơn hàng trong danh sách
         setOrders(orders.map(order => 
           order._id === selectedOrderId ? { ...order, orderStatus: 'Cancelled' } : order
         ));
         
-        // Đóng form xác nhận
         closeCancelConfirmation();
       } else {
         showToast({
@@ -163,7 +161,6 @@ const MyOrders = () => {
         duration: 3000
       });
     } finally {
-      // Reset trạng thái nút (nếu modal vẫn còn)
       const confirmBtn = document.querySelector(`#confirm-cancel-btn`);
       if (confirmBtn) {
         confirmBtn.textContent = 'Xác nhận hủy';
@@ -172,7 +169,6 @@ const MyOrders = () => {
     }
   };
   
-  // Format date to Vietnamese locale
   const formatDate = (dateString) => {
     const options = { 
       year: 'numeric', 
@@ -184,7 +180,6 @@ const MyOrders = () => {
     return new Date(dateString).toLocaleDateString('vi-VN', options);
   };
   
-  // Lấy tên trạng thái tiếng Việt
   const getStatusVietnamese = (status) => {
     switch (status) {
       case 'Processing':
@@ -200,47 +195,40 @@ const MyOrders = () => {
     }
   };
   
-  // Xác định màu cho trạng thái
   const getStatusColor = (status) => {
     switch (status) {
       case 'Processing':
-        return '#ff9800'; // Màu cam
+        return '#ff9800';
       case 'Shipped':
-        return '#2196f3'; // Màu xanh dương
+        return '#2196f3';
       case 'Delivered':
-        return '#4caf50'; // Màu xanh lá
+        return '#4caf50';
       case 'Cancelled':
-        return '#f44336'; // Màu đỏ
+        return '#f44336';
       default:
-        return '#757575'; // Màu xám
+        return '#757575';
     }
   };
   
-  // Kiểm tra xem đơn hàng có thể hủy hay không
   const canCancelOrder = (status) => {
     return status === 'Processing';
   };
   
-  // Hiển thị modal xác nhận hủy đơn hàng
   useEffect(() => {
     if (showConfirmModal) {
-      // Nếu modal chưa tồn tại và cần hiển thị
       if (!document.getElementById("floating-cancel-box")) {
-        // Tạo modal container
         const cancelBox = document.createElement('div');
         cancelBox.id = "floating-cancel-box";
         cancelBox.className = cx('floating-cancel-box');
         
-        // Tính toán vị trí hiển thị ban đầu (giữa màn hình)
         const windowWidth = window.innerWidth;
         const windowHeight = window.innerHeight;
-        const boxWidth = 350; // Chiều rộng ước tính của box
-        const boxHeight = 220; // Chiều cao ước tính của box
+        const boxWidth = 350;
+        const boxHeight = 220;
         
         cancelBox.style.left = `${(windowWidth - boxWidth) / 2}px`;
         cancelBox.style.top = `${(windowHeight - boxHeight) / 2}px`;
         
-        // Tạo nội dung HTML cho modal
         cancelBox.innerHTML = `
           <div class="${cx('cancel-box-header')}">
             <h3>Xác nhận hủy đơn hàng</h3>
@@ -262,13 +250,10 @@ const MyOrders = () => {
           </div>
         `;
         
-        // Thêm vào body
         document.body.appendChild(cancelBox);
         
-        // Lưu reference
         cancelOrderBoxRef.current = cancelBox;
         
-        // Thêm sự kiện đóng modal
         const closeBtn = cancelBox.querySelector(`.${cx('close-cancel-btn')}`);
         if (closeBtn) {
           closeBtn.addEventListener('click', closeCancelConfirmation);
@@ -279,37 +264,31 @@ const MyOrders = () => {
           closeCancelBtn.addEventListener('click', closeCancelConfirmation);
         }
         
-        // Thêm sự kiện xác nhận hủy đơn hàng
         const confirmBtn = cancelBox.querySelector('#confirm-cancel-btn');
         if (confirmBtn) {
           confirmBtn.addEventListener('click', handleCancelOrder);
         }
         
-        // Thêm sự kiện kéo thả
         const header = cancelBox.querySelector(`.${cx('cancel-box-header')}`);
         if (header) {
           let isDragging = false;
           let offsetX, offsetY;
           
-          // Sự kiện mousedown để bắt đầu kéo
           header.addEventListener('mousedown', (e) => {
             isDragging = true;
             const rect = cancelBox.getBoundingClientRect();
             offsetX = e.clientX - rect.left;
             offsetY = e.clientY - rect.top;
             
-            // Thêm class active khi đang kéo
             header.classList.add(cx('dragging'));
           });
           
-          // Sự kiện mousemove để theo dõi di chuyển
           document.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
             
             const newX = e.clientX - offsetX;
             const newY = e.clientY - offsetY;
             
-            // Giới hạn không kéo ra ngoài màn hình
             const maxX = window.innerWidth - cancelBox.offsetWidth;
             const maxY = window.innerHeight - cancelBox.offsetHeight;
             
@@ -317,7 +296,6 @@ const MyOrders = () => {
             cancelBox.style.top = `${Math.max(0, Math.min(newY, maxY))}px`;
           });
           
-          // Sự kiện mouseup để kết thúc kéo
           document.addEventListener('mouseup', () => {
             if (isDragging) {
               isDragging = false;
@@ -327,7 +305,6 @@ const MyOrders = () => {
         }
       }
     } else {
-      // Nếu cần ẩn modal
       const cancelBox = document.getElementById("floating-cancel-box");
       if (cancelBox) {
         cancelBox.remove();

@@ -1,14 +1,11 @@
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 
-// Kiểm tra xem người dùng đã đăng nhập chưa
 exports.isAuthenticatedUser = async (req, res, next) => {
     try {
-        // Lấy token từ cookies hoặc header
         let token = req.cookies.token;
         console.log('Cookie token:', token);
         
-        // Nếu không có trong cookies, kiểm tra Authorization header
         if (!token && req.headers.authorization && req.headers.authorization.startsWith('Bearer ')) {
             token = req.headers.authorization.split(' ')[1];
             console.log('Header token:', token);
@@ -44,7 +41,6 @@ exports.isAuthenticatedUser = async (req, res, next) => {
     }
 };
 
-// Xử lý quyền người dùng
 exports.authorizeRoles = (...roles) => {
     return (req, res, next) => {
         if (!roles.includes(req.user.role)) {

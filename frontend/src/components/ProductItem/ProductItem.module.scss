@@ -1,14 +1,19 @@
 .product-item {
   width: 100%;
   margin: 0;
-  transition: transform 0.3s ease;
+  background: var(--color-surface);
   overflow: hidden;
-  border-radius: 8px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  border-radius: var(--radius-md);
+  box-shadow: 0 0 0 1px var(--color-hairline);
+  transition:
+    transform var(--duration-micro) var(--ease-spring),
+    box-shadow var(--duration-micro) ease;
 
   &:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    transform: translateY(-6px);
+    box-shadow:
+      var(--shadow-card),
+      0 0 0 1px var(--color-hairline-strong);
   }
 }
 
@@ -16,65 +21,76 @@
   text-decoration: none;
   color: inherit;
   display: block;
+
+  &:focus-visible {
+    outline: 2px solid var(--color-gold);
+    outline-offset: 2px;
+    border-radius: var(--radius-md);
+  }
 }
 
 .product-image {
   width: 100%;
-  height: 200px;
-  
+  aspect-ratio: 4 / 5;
+  background: var(--image-well);
+  overflow: hidden;
+
   img {
     width: 100%;
     height: 100%;
     object-fit: contain;
-    transition: transform 0.5s ease;
-    
-    &:hover {
+    transition: transform 500ms var(--ease-spring);
+  }
+
+  .product-item:hover & {
+    img {
       transform: scale(1.05);
     }
   }
 }
 
 .product-info {
-  padding: 10px;
-  background-color: #fff;
+  padding: 12px 14px 14px;
+  background-color: var(--color-surface);
 }
 
 .product-name {
-  font-size: 14px;
+  font-size: 15px;
+  line-height: 1.35;
   margin: 0 0 8px 0;
   font-weight: 500;
-  height: 40px;
+  color: var(--color-text);
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  transition: color var(--duration-micro) ease;
+
+  .product-item:hover & {
+    color: var(--color-gold);
+  }
 }
 
 .product-price {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 600;
-  color: #d10000;
+  color: var(--color-price);
   margin: 0;
 }
 
 /* Media queries cho responsive */
 @media (max-width: 576px) {
-  .product-image {
-    height: 150px;
-  }
-  
   .product-info {
-    padding: 8px;
+    padding: 10px 12px 12px;
   }
-  
+
   .product-name {
-    font-size: 12px;
-    height: 36px;
-    margin-bottom: 5px;
+    font-size: 13px;
+    margin-bottom: 6px;
   }
-  
+
   .product-price {
-    font-size: 14px;
+    font-size: 15px;
   }
-} 
+}

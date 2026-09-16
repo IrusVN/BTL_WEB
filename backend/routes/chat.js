@@ -4,15 +4,12 @@ const Message = require('../models/Message');
 const Conversation = require('../models/Conversation');
 const { isAuthenticatedUser, authorizeRoles } = require('../middleware/auth');
 
-// Tạo hoặc lấy cuộc hội thoại của người dùng
 router.get('/conversation', isAuthenticatedUser, async (req, res) => {
     try {
         const userId = req.user._id;
         
-        // Tìm cuộc hội thoại của người dùng
         let conversation = await Conversation.findOne({ userId });
         
-        // Nếu không tìm thấy, tạo mới
         if (!conversation) {
             conversation = new Conversation({
                 userId,
@@ -35,16 +32,13 @@ router.get('/conversation', isAuthenticatedUser, async (req, res) => {
     }
 });
 
-// Tạo cuộc hội thoại cho khách (không cần đăng nhập)
 router.post('/conversation/guest', async (req, res) => {
     try {
         const guestId = req.body.guestId || `guest_${Date.now()}`;
         const guestName = req.body.guestName || 'Khách';
         
-        // Tìm cuộc hội thoại của khách
         let conversation = await Conversation.findOne({ userId: guestId });
         
-        // Nếu không tìm thấy, tạo mới
         if (!conversation) {
             conversation = new Conversation({
                 userId: guestId,
@@ -67,19 +61,16 @@ router.post('/conversation/guest', async (req, res) => {
     }
 });
 
-// Gửi tin nhắn
 router.post('/message', isAuthenticatedUser, async (req, res) => {
     try {
         const { conversationId, text, isAdmin = false } = req.body;
         
-        // Lấy thông tin người dùng từ token
         const userId = req.user._id;
         const userName = req.user.name || 'Người dùng';
         const userRole = req.user.role || [];
         
         console.log('Thông tin người dùng gửi tin nhắn:', { userId, userName, userRole, isAdmin });
         
-        // Kiểm tra quyền admin nếu tin nhắn được gửi với tư cách admin
         if (isAdmin && !userRole.includes('admin')) {
             return res.status(403).json({
                 success: false,
@@ -87,7 +78,6 @@ router.post('/message', isAuthenticatedUser, async (req, res) => {
             });
         }
         
-        // Tìm cuộc hội thoại
         const conversation = await Conversation.findById(conversationId);
         if (!conversation) {
             console.log('Không tìm thấy cuộc hội thoại:', conversationId);
@@ -99,7 +89,6 @@ router.post('/message', isAuthenticatedUser, async (req, res) => {
         
         console.log('Thông tin cuộc hội thoại:', conversation);
         
-        // Kiểm tra xem người dùng có quyền gửi tin nhắn trong cuộc hội thoại này không
         if (!isAdmin && conversation.userId.toString() !== userId.toString()) {
             console.log('Người dùng không có quyền gửi tin nhắn trong cuộc hội thoại này');
             return res.status(403).json({
@@ -108,7 +97,6 @@ router.post('/message', isAuthenticatedUser, async (req, res) => {
             });
         }
         
-        // Tạo tin nhắn mới
         const message = new Message({
             conversationId,
             senderId: userId,
@@ -121,11 +109,9 @@ router.post('/message', isAuthenticatedUser, async (req, res) => {
         await message.save();
         console.log('Đã lưu tin nhắn thành công');
         
-        // Cập nhật thông tin cuộc hội thoại
         conversation.lastMessage = text;
         conversation.lastUpdated = Date.now();
         
-        // Nếu tin nhắn từ người dùng, tăng số tin nhắn chưa đọc
         if (!isAdmin) {
             conversation.unreadCount = (conversation.unreadCount || 0) + 1;
         }
@@ -147,7 +133,6 @@ router.post('/message', isAuthenticatedUser, async (req, res) => {
     }
 });
 
-// Lấy danh sách tin nhắn của cuộc hội thoại
 router.get('/messages/:conversationId', isAuthenticatedUser, async (req, res) => {
     try {
         const { conversationId } = req.params;
@@ -157,7 +142,6 @@ router.get('/messages/:conversationId', isAuthenticatedUser, async (req, res) =>
         console.log('Lấy tin nhắn cho cuộc hội thoại:', conversationId);
         console.log('Thông tin người dùng:', { userId, userRole });
         
-        // Tìm cuộc hội thoại
         const conversation = await Conversation.findById(conversationId);
         if (!conversation) {
             console.log('Không tìm thấy cuộc hội thoại:', conversationId);
@@ -167,7 +151,6 @@ router.get('/messages/:conversationId', isAuthenticatedUser, async (req, res) =>
             });
         }
         
-        // Kiểm tra quyền truy cập tin nhắn
         const isAdmin = userRole.includes('admin');
         if (!isAdmin && conversation.userId.toString() !== userId.toString()) {
             console.log('Người dùng không có quyền xem tin nhắn trong cuộc hội thoại này');
@@ -177,7 +160,6 @@ router.get('/messages/:conversationId', isAuthenticatedUser, async (req, res) =>
             });
         }
         
-        // Lấy danh sách tin nhắn, sắp xếp theo thời gian tạo
         const messages = await Message.find({ conversationId })
             .sort({ createdAt: 1 });
         
@@ -197,10 +179,8 @@ router.get('/messages/:conversationId', isAuthenticatedUser, async (req, res) =>
     }
 });
 
-// Lấy danh sách cuộc hội thoại cho admin
 router.get('/conversations', isAuthenticatedUser, authorizeRoles('admin'), async (req, res) => {
     try {
-        // Lấy danh sách cuộc hội thoại, sắp xếp theo thời gian cập nhật mới nhất
         const conversations = await Conversation.find()
             .sort({ lastUpdated: -1 });
         
@@ -217,12 +197,10 @@ router.get('/conversations', isAuthenticatedUser, authorizeRoles('admin'), async
     }
 });
 
-// Đánh dấu tin nhắn đã đọc
 router.put('/conversation/:conversationId/read', isAuthenticatedUser, authorizeRoles('admin'), async (req, res) => {
     try {
         const { conversationId } = req.params;
         
-        // Cập nhật cuộc hội thoại
         const conversation = await Conversation.findById(conversationId);
         if (!conversation) {
             return res.status(404).json({
@@ -234,7 +212,6 @@ router.put('/conversation/:conversationId/read', isAuthenticatedUser, authorizeR
         conversation.unreadCount = 0;
         await conversation.save();
         
-        // Đánh dấu tất cả tin nhắn của người dùng là đã đọc
         await Message.updateMany(
             { conversationId, isAdmin: false, isRead: false },
             { isRead: true }
@@ -253,12 +230,10 @@ router.put('/conversation/:conversationId/read', isAuthenticatedUser, authorizeR
     }
 });
 
-// Xóa cuộc hội thoại và tất cả tin nhắn liên quan
 router.delete('/conversation/:conversationId', isAuthenticatedUser, authorizeRoles('admin'), async (req, res) => {
     try {
         const { conversationId } = req.params;
         
-        // Kiểm tra xem cuộc hội thoại có tồn tại không
         const conversation = await Conversation.findById(conversationId);
         if (!conversation) {
             return res.status(404).json({
@@ -267,10 +242,8 @@ router.delete('/conversation/:conversationId', isAuthenticatedUser, authorizeRol
             });
         }
         
-        // Xóa tất cả tin nhắn thuộc cuộc hội thoại này
         await Message.deleteMany({ conversationId });
         
-        // Xóa cuộc hội thoại
         await Conversation.findByIdAndDelete(conversationId);
         
         res.status(200).json({

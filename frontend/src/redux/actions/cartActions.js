@@ -1,26 +1,22 @@
 import axios from 'axios';
 import { API_URL } from '../../services/authService.js';
 
-// Checkout actions
 export const CHECKOUT_REQUEST = 'CHECKOUT_REQUEST';
 export const CHECKOUT_SUCCESS = 'CHECKOUT_SUCCESS';
 export const CHECKOUT_FAIL = 'CHECKOUT_FAIL';
 export const CHECKOUT_RESET = 'CHECKOUT_RESET';
 
-// Payment actions
 export const PAYMENT_REQUEST = 'PAYMENT_REQUEST';
 export const PAYMENT_SUCCESS = 'PAYMENT_SUCCESS';
 export const PAYMENT_FAIL = 'PAYMENT_FAIL';
 export const PAYMENT_RESET = 'PAYMENT_RESET';
 
-// Cart actions
 export const CART_RESET = 'CART_RESET';
 export const CART_ADD_ITEM = 'CART_ADD_ITEM';
 export const CART_REMOVE_ITEM = 'CART_REMOVE_ITEM';
 export const CART_UPDATE_ITEM = 'CART_UPDATE_ITEM';
 export const CART_CLEAR = 'CART_CLEAR';
 
-// Cart actions
 export const addToCart = (productId, quantity) => async (dispatch, getState) => {
   try {
     const token = localStorage.getItem('token');
@@ -40,7 +36,6 @@ export const addToCart = (productId, quantity) => async (dispatch, getState) => 
     );
 
     if (data.success) {
-      // Trích xuất thông tin cần thiết từ phản hồi API
       const cartItem = {
         id: data.cart.items[data.cart.items.length - 1]._id,
         productId: productId,
@@ -154,7 +149,6 @@ export const clearCart = () => async (dispatch, getState) => {
   }
 };
 
-// Action to create an order from cart
 export const createOrder = (orderData) => async (dispatch, getState) => {
   try {
     dispatch({ type: CHECKOUT_REQUEST });
@@ -180,7 +174,6 @@ export const createOrder = (orderData) => async (dispatch, getState) => {
       payload: data,
     });
 
-    // Clear cart after successful order
     dispatch({ type: CART_RESET });
 
   } catch (error) {
@@ -198,7 +191,6 @@ export const resetCheckout = () => (dispatch) => {
   dispatch({ type: CHECKOUT_RESET });
 };
 
-// Payment action creator
 export const processPayment = (paymentData) => async (dispatch, getState) => {
   try {
     dispatch({ type: PAYMENT_REQUEST });

@@ -9,9 +9,7 @@ function BadgeCart() {
     const [cartCount, setCartCount] = useState(0);
     const { user } = useAuth();
 
-    // Lấy số lượng sản phẩm trong giỏ hàng
     const updateCount = async () => {
-        // Nếu người dùng chưa đăng nhập, số lượng = 0
         if (!user) {
             setCartCount(0);
             return;
@@ -28,7 +26,6 @@ function BadgeCart() {
             });
             
             if (response.data.success && response.data.cart) {
-                // Tính tổng số lượng sản phẩm trong giỏ hàng
                 const totalItems = response.data.cart.items.reduce(
                     (sum, item) => sum + item.quantity, 0
                 );
@@ -41,13 +38,10 @@ function BadgeCart() {
     };
 
     useEffect(() => {
-        // Gọi hàm updateCount ngay khi component mount và khi user thay đổi
         updateCount();
-        
-        // Thiết lập event listener để lắng nghe sự kiện cập nhật giỏ hàng
+
         window.addEventListener('cart-updated', updateCount);
-        
-        // Cleanup function
+
         return () => {
             window.removeEventListener('cart-updated', updateCount);
         };

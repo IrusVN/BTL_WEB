@@ -4,20 +4,20 @@ import * as styles from './OrderConfirmation.module.scss';
 import classNames from 'classnames/bind';
 import { resendOrderConfirmationEmail } from '../../services/orderService.js';
 import { showToast } from '../../components/Toast/index.js';
+import { useHead } from '../../hooks/useHead.js';
 
 const cx = classNames.bind(styles);
 
 const OrderConfirmation = () => {
+    useHead('Xác nhận đơn hàng');
   const location = useLocation();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
-  
-  // Lấy thông tin đơn hàng từ state hoặc redirect về trang chủ nếu không có
+
   const { orderDetails, success } = location.state || {};
   
   if (!success || !orderDetails) {
-    // Nếu không có thông tin đơn hàng, chuyển hướng về trang chủ
     React.useEffect(() => {
       navigate('/');
     }, [navigate]);
@@ -25,17 +25,13 @@ const OrderConfirmation = () => {
     return null;
   }
   
-  // Tính tổng tiền các sản phẩm
   const subtotal = orderDetails.itemsPrice;
-  const taxPrice = 0; // Không tính thuế
+  const taxPrice = 0;
   const shippingPrice = orderDetails.shippingPrice || 0;
   const discount = orderDetails.discount || 0;
-  // Tính tổng tiền đúng: tạm tính - giảm giá + phí vận chuyển
   const calculateTotal = subtotal - discount + shippingPrice;
-  // Sử dụng giá trị tính toán thay vì lấy từ orderDetails
   const totalPrice = calculateTotal;
   
-  // Xử lý gửi email xác nhận đơn hàng
   const handleSendEmailConfirmation = async () => {
     try {
       setIsLoading(true);
@@ -53,15 +49,12 @@ const OrderConfirmation = () => {
       let errorMsg = "Không thể gửi email xác nhận.";
       
       if (error.response) {
-        // Lỗi từ server
         errorMsg = error.response.data.message || errorMsg;
         console.error('Lỗi gửi email:', error.response.data);
       } else if (error.request) {
-        // Lỗi không nhận được phản hồi từ server
         errorMsg = "Không thể kết nối đến server. Vui lòng kiểm tra kết nối mạng.";
         console.error('Lỗi kết nối:', error.request);
       } else {
-        // Lỗi khác
         errorMsg = error.message || errorMsg;
         console.error('Lỗi gửi email:', error.message);
       }

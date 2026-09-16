@@ -5,6 +5,10 @@ import classNames from 'classnames/bind';
 import * as styles from './ProductDetail.module.scss';
 import { showToast } from '../../components/Toast/index.js';
 import { API_URL } from '../../services/authService.js';
+import { useHead } from '../../hooks/useHead.js';
+import '@fortawesome/fontawesome-free/css/all.min.css';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faChevronLeft, faChevronRight } from '@fortawesome/free-solid-svg-icons';
 
 const cx = classNames.bind(styles);
 
@@ -25,22 +29,20 @@ function ProductDetail() {
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [isAdmin, setIsAdmin] = useState(false);
     const [isLoadingComments, setIsLoadingComments] = useState(true);
-    const [slideDirection, setSlideDirection] = useState(''); // 'next' hoặc 'prev' để xác định hướng animation
+    const [slideDirection, setSlideDirection] = useState('');
     const [isAnimating, setIsAnimating] = useState(false);
     const [touchStart, setTouchStart] = useState(null);
+    useHead(product ? product.name : 'Chi tiết sản phẩm');
     const [touchEnd, setTouchEnd] = useState(null);
     
-    // Ngưỡng tối thiểu cho thao tác vuốt
     const minSwipeDistance = 50;
     
     const openModal = () => {
         setIsModalOpen(true);
-        // Ngăn scroll khi modal mở
         document.body.style.overflow = 'hidden';
     };
     const closeModal = () => {
         setIsModalOpen(false);
-        // Khôi phục lại scroll nếu cần
         document.body.style.overflow = '';
     };
     const extraInfoRef = useRef(null);
@@ -49,32 +51,25 @@ function ProductDetail() {
     const autoSlideInterval = useRef(null);
     const topRef = useRef(null);
 
-    // Xử lý chuyển trang và cuộn lên đầu trang khi chọn sản phẩm tương tự
     const handleSimilarProductClick = (e, productId) => {
         e.preventDefault();
         
-        // Thêm class animation cho body
         document.body.classList.add('scroll-up-animation');
         
-        // Bắt đầu animation cuộn lên đầu trang
         window.scrollTo({
             top: 0,
             behavior: 'smooth'
         });
         
-        // Đặt timeout trước khi chuyển hướng để cho phép animation hoàn tất
         setTimeout(() => {
-            // Sau khi animation hoàn tất, chuyển đến trang sản phẩm tương tự
             navigate(`/product/${productId}`);
             
-            // Xóa class animation
             setTimeout(() => {
                 document.body.classList.remove('scroll-up-animation');
             }, 100);
-        }, 600); // Thời gian đợi trước khi chuyển hướng (điều chỉnh để khớp với thời gian animation)
+        }, 600);
     };
 
-    // Khi chuyển trang sản phẩm, tự động cuộn lên đầu
     useEffect(() => {
         window.scrollTo({
             top: 0,
@@ -93,7 +88,7 @@ function ProductDetail() {
                         block: newState ? 'start' : 'start',
                     });
                 }
-            }, 300); // delay khớp với CSS
+            }, 300);
 
             return newState;
         });
@@ -111,65 +106,54 @@ function ProductDetail() {
         setMainImageIndex((prev) => (prev - 1 + product.images.length) % product.images.length);
     };
     
-    // Sử dụng useCallback để tránh tạo lại hàm mỗi lần render
     const handleNextSlide = useCallback(() => {
         if (!similarProducts || similarProducts.length <= 5 || isAnimating) return;
         
-        // Thiết lập hướng animation và trạng thái đang animation
         setSlideDirection('next');
         setIsAnimating(true);
         
-        // Sau khi animation bắt đầu, cập nhật currentSlide
         setTimeout(() => {
             setCurrentSlide((prev) => {
                 const next = prev + 1;
                 return next >= similarProducts.length - 4 ? 0 : next;
             });
             
-            // Đặt timeout để kết thúc animation sau khi đã chuyển slide
             setTimeout(() => {
                 setIsAnimating(false);
-            }, 300); // Thời gian animation
-        }, 50); // Delay nhỏ để animation bắt đầu trước khi thay đổi slide
+            }, 300);
+        }, 50);
     }, [similarProducts, isAnimating]);
     
     const handlePrevSlide = useCallback(() => {
         if (!similarProducts || similarProducts.length <= 5 || isAnimating) return;
         
-        // Thiết lập hướng animation và trạng thái đang animation
         setSlideDirection('prev');
         setIsAnimating(true);
         
-        // Sau khi animation bắt đầu, cập nhật currentSlide
         setTimeout(() => {
             setCurrentSlide((prev) => {
                 const next = prev - 1;
                 return next < 0 ? similarProducts.length - 5 : next;
             });
             
-            // Đặt timeout để kết thúc animation sau khi đã chuyển slide
             setTimeout(() => {
                 setIsAnimating(false);
-            }, 300); // Thời gian animation
-        }, 50); // Delay nhỏ để animation bắt đầu trước khi thay đổi slide
+            }, 300);
+        }, 50);
     }, [similarProducts, isAnimating]);
     
-    // Thiết lập interval cho slideshow
     useEffect(() => {
-        // Xóa interval cũ nếu có
         if (autoSlideInterval.current) {
             clearInterval(autoSlideInterval.current);
             autoSlideInterval.current = null;
         }
         
-        // Chỉ bắt đầu slideshow khi có đủ sản phẩm
         if (similarProducts && similarProducts.length > 5) {
             autoSlideInterval.current = setInterval(() => {
                 handleNextSlide();
             }, 5000);
         }
         
-        // Dọn dẹp khi component unmount
         return () => {
             if (autoSlideInterval.current) {
                 clearInterval(autoSlideInterval.current);
@@ -178,17 +162,14 @@ function ProductDetail() {
         };
     }, [similarProducts, handleNextSlide]);
     
-    // Dừng slideshow khi component không hiển thị
     useEffect(() => {
         const handleVisibilityChange = () => {
             if (document.hidden) {
-                // Trang bị ẩn, dừng auto slide
                 if (autoSlideInterval.current) {
                     clearInterval(autoSlideInterval.current);
                     autoSlideInterval.current = null;
                 }
             } else if (similarProducts && similarProducts.length > 5) {
-                // Trang hiển thị lại, khởi động lại auto slide
                 if (autoSlideInterval.current) {
                     clearInterval(autoSlideInterval.current);
                 }
@@ -203,7 +184,6 @@ function ProductDetail() {
         };
     }, [similarProducts, handleNextSlide]);
 
-    // Tải dữ liệu sản phẩm
     useEffect(() => {
         const fetchProduct = async () => {
             if (!id) {
@@ -222,7 +202,6 @@ function ProductDetail() {
                 if (response.data.success) {
                     setProduct(response.data.product);
                     
-                    // Sau khi có sản phẩm, lấy các sản phẩm tương tự
                     if (response.data.product && response.data.product.category) {
                         fetchSimilarProducts(response.data.product.category);
                     }
@@ -248,11 +227,9 @@ function ProductDetail() {
             if (!categoryId) return;
             
             try {
-                // Lấy các sản phẩm cùng danh mục, loại trừ sản phẩm hiện tại
                 console.log(`Đang tải sản phẩm tương tự cho danh mục: ${categoryId}`);
                 const response = await axios.get(`${API_URL}/products/category/${encodeURIComponent(categoryId)}`);
                 if (response.data.success) {
-                    // Lọc ra các sản phẩm khác với sản phẩm hiện tại và giới hạn 10 sản phẩm
                     const filtered = response.data.products
                         .filter(prod => prod._id !== id)
                         .slice(0, 10);
@@ -267,7 +244,6 @@ function ProductDetail() {
 
         fetchProduct();
         
-        // Kiểm tra trạng thái đăng nhập và quyền admin
         const checkAuth = async () => {
             const token = localStorage.getItem('token');
             if (token) {
@@ -277,7 +253,6 @@ function ProductDetail() {
                     });
                     if (res.data.success) {
                         setIsAuthenticated(true);
-                        // Kiểm tra nếu người dùng là admin
                         if (res.data.user && res.data.user.role === 'admin') {
                             setIsAdmin(true);
                         }
@@ -290,7 +265,6 @@ function ProductDetail() {
         
         checkAuth();
         
-        // Cleanup khi component unmount
         return () => {
             if (autoSlideInterval.current) {
                 clearInterval(autoSlideInterval.current);
@@ -299,7 +273,6 @@ function ProductDetail() {
         };
     }, [id, navigate]);
     
-    // Lấy bình luận
     useEffect(() => {
         const fetchComments = async () => {
             if (!id) return;
@@ -329,9 +302,7 @@ function ProductDetail() {
 
     const handleAddToCart = async () => {
         try {
-            // Kiểm tra đã đăng nhập chưa
             if (!isAuthenticated) {
-                // Chưa đăng nhập, hiển thị thông báo
                 showToast({
                     title: 'Lỗi',
                     message: 'Vui lòng đăng nhập để thêm sản phẩm vào giỏ hàng',
@@ -340,7 +311,6 @@ function ProductDetail() {
                 return;
             }
 
-            // Kiểm tra số lượng
             if (quantity <= 0 || quantity > product.stock) {
                 showToast({
                     title: 'Lỗi',
@@ -350,7 +320,6 @@ function ProductDetail() {
                 return;
             }
 
-            // Gọi API thêm vào giỏ hàng
             const token = localStorage.getItem('token');
             const response = await axios.post(
                 `${API_URL}/cart/add`,
@@ -368,14 +337,12 @@ function ProductDetail() {
             );
 
             if (response.data.success) {
-                // Hiển thị thông báo thành công
                 showToast({
                     title: 'Thành công',
                     message: 'Đã thêm sản phẩm vào giỏ hàng',
                     type: 'success',
                 });
                 
-                // Kích hoạt sự kiện cập nhật số lượng giỏ hàng
                 window.dispatchEvent(new Event('cart-updated'));
             } else {
                 showToast({
@@ -387,9 +354,7 @@ function ProductDetail() {
         } catch (error) {
             console.error('Lỗi khi thêm vào giỏ hàng:', error);
             
-            // Xử lý các trường hợp lỗi khác nhau
             if (error.response) {
-                // Lỗi từ server
                 const errorMessage = error.response.data.message || 'Đã xảy ra lỗi khi thêm vào giỏ hàng';
                 showToast({
                     title: 'Lỗi',
@@ -397,14 +362,12 @@ function ProductDetail() {
                     type: 'error',
                 });
             } else if (error.request) {
-                // Không nhận được phản hồi từ server
                 showToast({
                     title: 'Lỗi kết nối',
                     message: 'Không thể kết nối đến máy chủ',
                     type: 'error',
                 });
             } else {
-                // Lỗi khác
                 showToast({
                     title: 'Lỗi',
                     message: 'Đã xảy ra lỗi khi thêm vào giỏ hàng',
@@ -414,7 +377,6 @@ function ProductDetail() {
         }
     };
     
-    // Xử lý gửi bình luận
     const handleSubmitComment = async (e) => {
         e.preventDefault();
         
@@ -442,7 +404,6 @@ function ProductDetail() {
             );
             
             if (response.data.success) {
-                // Thêm bình luận mới vào state
                 setComments([response.data.comment, ...comments]);
                 setNewComment('');
                 setRating(5);
@@ -463,7 +424,6 @@ function ProductDetail() {
         }
     };
     
-    // Xử lý xóa bình luận
     const handleDeleteComment = async (commentId) => {
         try {
             const token = localStorage.getItem('token');
@@ -479,7 +439,6 @@ function ProductDetail() {
             );
             
             if (response.data.success) {
-                // Lọc bỏ bình luận đã xóa
                 setComments(comments.filter(comment => comment._id !== commentId));
                 
                 showToast({
@@ -498,7 +457,6 @@ function ProductDetail() {
         }
     };
 
-    // Thêm useEffect để kiểm soát việc cuộn trang khi modal mở
     useEffect(() => {
         if (isModalOpen) {
             document.body.classList.add('body-no-scroll');
@@ -506,13 +464,11 @@ function ProductDetail() {
             document.body.classList.remove('body-no-scroll');
         }
         
-        // Cleanup khi component unmount
         return () => {
             document.body.classList.remove('body-no-scroll');
         };
     }, [isModalOpen]);
 
-    // Xử lý thao tác vuốt trên thiết bị di động
     const onTouchStart = (e) => {
         setTouchEnd(null);
         setTouchStart(e.targetTouches[0].clientX);
@@ -529,10 +485,8 @@ function ProductDetail() {
         
         if (isSwipe) {
             if (distance > 0) {
-                // Vuốt sang trái -> hiển thị hình ảnh tiếp theo
                 handleNextImage();
             } else {
-                // Vuốt sang phải -> hiển thị hình ảnh trước đó
                 handlePrevImage();
             }
         }
@@ -546,7 +500,6 @@ function ProductDetail() {
         return <div className={cx('error')}>Không tìm thấy sản phẩm</div>;
     }
 
-    // Tính toán sản phẩm tương tự hiển thị
     const visibleSimilarProducts = !similarProducts || similarProducts.length <= 5 
         ? similarProducts 
         : similarProducts.slice(currentSlide, currentSlide + 5).length === 5 
@@ -555,10 +508,17 @@ function ProductDetail() {
 
     return (
         <div className={cx('product-detail')} ref={topRef}>
+            <div className={cx('breadcrumb')}>
+                <Link to="/">Trang chủ</Link>
+                <FontAwesomeIcon icon={faChevronRight} className={cx('breadcrumb-sep')} />
+                <Link to="/products">Sản phẩm</Link>
+                <FontAwesomeIcon icon={faChevronRight} className={cx('breadcrumb-sep')} />
+                <span>{product.name.length > 40 ? product.name.slice(0, 40) + '…' : product.name}</span>
+            </div>
             <div className={cx('product-container')}>
                 <div className={cx('product-images')}>
-                    <div 
-                        className={cx('main-image')} 
+                    <div
+                        className={cx('main-image')}
                         onClick={openModal}
                         onTouchStart={onTouchStart}
                         onTouchMove={onTouchMove}
@@ -568,23 +528,25 @@ function ProductDetail() {
                             src={product.images[mainImageIndex]?.url || 'https://via.placeholder.com/400'}
                             alt={product.name}
                         />
-                        <button 
-                            className={cx('nav-btn', 'left')} 
+                        <button
+                            className={cx('nav-btn', 'left')}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 handlePrevImage();
                             }}
+                            aria-label="Ảnh trước"
                         >
-                            &lt;
+                            <FontAwesomeIcon icon={faChevronLeft} />
                         </button>
-                        <button 
-                            className={cx('nav-btn', 'right')} 
+                        <button
+                            className={cx('nav-btn', 'right')}
                             onClick={(e) => {
                                 e.stopPropagation();
                                 handleNextImage();
                             }}
+                            aria-label="Ảnh sau"
                         >
-                            &gt;
+                            <FontAwesomeIcon icon={faChevronRight} />
                         </button>
                     </div>
 
@@ -602,7 +564,9 @@ function ProductDetail() {
                 </div>
                 <div className={cx('product-info')}>
                     <h1 className={cx('product-name')}>{product.name}</h1>
-                    <div className={cx('product-price')}>{product.price.toLocaleString('vi-VN')} VND</div>
+                    <div className={cx('product-price')}>
+                        {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(product.price)}
+                    </div>
                     <div className={cx('product-description')}>
                         <h3>Mô tả sản phẩm</h3>
                         <p>{product.description}</p>
@@ -610,11 +574,11 @@ function ProductDetail() {
                     <div className={cx('product-quantity')}>
                         <h3>Số lượng</h3>
                         <div className={cx('quantity-control')}>
-                            <button onClick={() => handleQuantityChange(-1)} disabled={quantity <= 1}>
-                                -
+                            <button onClick={() => handleQuantityChange(-1)} disabled={quantity <= 1} aria-label="Giảm số lượng">
+                                −
                             </button>
                             <span>{quantity}</span>
-                            <button onClick={() => handleQuantityChange(1)} disabled={quantity >= product.stock}>
+                            <button onClick={() => handleQuantityChange(1)} disabled={quantity >= product.stock} aria-label="Tăng số lượng">
                                 +
                             </button>
                         </div>
@@ -780,12 +744,13 @@ function ProductDetail() {
                     
                     <div className={cx('similar-products-container')}>
                         {similarProducts.length > 5 && (
-                            <button 
-                                className={cx('similar-nav-btn', 'left')} 
+                            <button
+                                className={cx('similar-nav-btn', 'left')}
                                 onClick={handlePrevSlide}
                                 disabled={isAnimating}
+                                aria-label="Sản phẩm trước"
                             >
-                                &lt;
+                                <FontAwesomeIcon icon={faChevronLeft} />
                             </button>
                         )}
                         
@@ -811,7 +776,7 @@ function ProductDetail() {
                                     <div className={cx('similar-product-info')}>
                                         <h4 className={cx('similar-product-name')}>{similarProduct.name}</h4>
                                         <div className={cx('similar-product-price')}>
-                                            {similarProduct.price.toLocaleString('vi-VN')} VND
+                                            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(similarProduct.price)}
                                         </div>
                                     </div>
                                 </div>
@@ -819,12 +784,13 @@ function ProductDetail() {
                         </div>
                         
                         {similarProducts.length > 5 && (
-                            <button 
-                                className={cx('similar-nav-btn', 'right')} 
+                            <button
+                                className={cx('similar-nav-btn', 'right')}
                                 onClick={handleNextSlide}
                                 disabled={isAnimating}
+                                aria-label="Sản phẩm sau"
                             >
-                                &gt;
+                                <FontAwesomeIcon icon={faChevronRight} />
                             </button>
                         )}
                     </div>

@@ -329,7 +329,6 @@
   50% { opacity: 1; }
 }
 
-// Kiểu dáng cho modal xác nhận hủy đơn hàng
 .modalOverlay {
   position: fixed;
   top: 0;
@@ -350,7 +349,7 @@
   right: 0;
   bottom: 0;
   z-index: 1000;
-  pointer-events: none; // Cho phép tương tác với các phần tử bên dưới
+  pointer-events: none;
 }
 
 .confirmModal {
@@ -361,7 +360,7 @@
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
   overflow: hidden;
   animation: modalFadeIn 0.3s ease;
-  pointer-events: auto; // Cho phép tương tác với modal
+  pointer-events: auto;
   cursor: default;
   user-select: none;
 }
@@ -475,7 +474,6 @@
   }
 }
 
-// Responsive styles
 @media (max-width: 768px) {
   .myOrdersPage {
     padding: 40px 0;
@@ -515,7 +513,6 @@
   opacity: 0.9;
 }
 
-// Form xác nhận hủy đơn hàng mới
 .floating-cancel-box {
   position: fixed;
   width: 350px;

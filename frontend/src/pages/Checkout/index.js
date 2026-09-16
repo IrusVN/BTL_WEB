@@ -5,10 +5,12 @@ import classNames from 'classnames/bind';
 import { showToast } from '../../components/Toast/index.js';
 import axios from 'axios';
 import { API_URL } from '../../services/authService.js';
+import { useHead } from '../../hooks/useHead.js';
 
 const cx = classNames.bind(styles);
 
 const Checkout = () => {
+    useHead('Thanh toán');
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [cartItems, setCartItems] = useState([]);
@@ -25,7 +27,6 @@ const Checkout = () => {
         note: ''
     });
     
-    // Lấy thông tin giỏ hàng khi component được tải
     useEffect(() => {
         const fetchCart = async () => {
             try {
@@ -61,7 +62,6 @@ const Checkout = () => {
                         return;
                     }
                     
-                    // Định dạng lại dữ liệu giỏ hàng
                     const formattedItems = response.data.cart.items.map(item => ({
                         id: item._id,
                         productId: item.product._id,
@@ -76,7 +76,6 @@ const Checkout = () => {
                     setCartItems(formattedItems);
                     setCartTotal(response.data.cart.totalAmount);
                     
-                    // Lấy thông tin người dùng nếu có
                     try {
                         const userResponse = await axios.get(`${API_URL}/auth/me`, {
                             headers: { Authorization: `Bearer ${token}` }
@@ -120,7 +119,6 @@ const Checkout = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
         
-        // Kiểm tra điều kiện form
         if (!formData.fullName || !formData.address || !formData.city || !formData.phoneNo) {
             showToast({
                 title: "Lỗi",
@@ -131,17 +129,15 @@ const Checkout = () => {
             return;
         }
         
-        // Bắt đầu tạo đơn hàng
         setIsLoading(true);
         try {
             const token = localStorage.getItem('token');
             
-            // Lấy thông tin giảm giá từ localStorage nếu có
             const discount = parseInt(localStorage.getItem('discountAmount')) || 0;
             const orderData = {
                 ...formData,
                 discount: discount,
-                calculatedTotal: cartTotal - discount + shippingAmount // Gửi tổng tiền đã tính toán
+                calculatedTotal: cartTotal - discount + shippingAmount
             };
             
             const response = await axios.post(
@@ -157,15 +153,12 @@ const Checkout = () => {
             );
             
             if (response.data.success) {
-                // Thêm thông tin giảm giá vào dữ liệu đơn hàng
                 const orderWithDiscount = {
                     ...response.data.order,
                     discount: discount,
-                    // Ghi đè tổng tiền để đảm bảo tính đúng
                     totalPrice: cartTotal - discount + shippingAmount
                 };
                 
-                // Thông báo đặt hàng thành công
                 showToast({
                     title: "Thành công",
                     message: "Đơn hàng của bạn đã được đặt thành công!",
@@ -173,10 +166,8 @@ const Checkout = () => {
                     duration: 3000
                 });
                 
-                // Kích hoạt sự kiện cập nhật số lượng giỏ hàng trên badge
                 window.dispatchEvent(new Event('cart-updated'));
                 
-                // Xóa thông tin giảm giá khỏi localStorage
                 localStorage.removeItem('discount');
                 localStorage.removeItem('discountAmount');
                 localStorage.removeItem('discountType');
@@ -184,7 +175,6 @@ const Checkout = () => {
                 localStorage.removeItem('discountName');
                 localStorage.removeItem('discountCode');
                 
-                // Chuyển đến trang xác nhận đơn hàng
                 navigate('/order-confirmation', { 
                     state: { 
                         orderDetails: orderWithDiscount,
@@ -202,17 +192,13 @@ const Checkout = () => {
         } catch (error) {
             console.error('Lỗi khi tạo đơn hàng:', error);
             
-            // Kiểm tra nếu lỗi là do số lượng tồn kho không đủ
             if (error.response?.data?.stockCheckResults) {
-                // Hiển thị thông báo chi tiết về sản phẩm còn thiếu
                 const insufficientItems = error.response.data.stockCheckResults.filter(item => item.status === 'error');
                 
-                // Tạo danh sách sản phẩm không đủ số lượng
                 const errorMessages = insufficientItems.map(item => 
                     `${item.product}: ${item.message}`
                 );
                 
-                // Hiển thị thông báo lỗi với danh sách sản phẩm thiếu
                 showToast({
                     title: "Số lượng tồn kho không đủ",
                     message: "Vui lòng quay lại giỏ hàng để điều chỉnh số lượng sản phẩm.",
@@ -220,10 +206,8 @@ const Checkout = () => {
                     duration: 5000
                 });
                 
-                // Hiển thị modal thông báo chi tiết
                 showStockErrorModal(insufficientItems);
             } else {
-                // Hiển thị lỗi mặc định nếu không phải lỗi tồn kho
                 showToast({
                     title: "Lỗi",
                     message: error.response?.data?.message || "Đã xảy ra lỗi khi tạo đơn hàng",
@@ -236,13 +220,10 @@ const Checkout = () => {
         }
     };
 
-    // Hàm hiển thị modal thông báo chi tiết về sản phẩm hết hàng
     const showStockErrorModal = (insufficientItems) => {
-        // Tạo đối tượng div cho modal
         const modalContainer = document.createElement('div');
         modalContainer.className = cx('stockErrorModal');
         
-        // Tạo nội dung modal
         modalContainer.innerHTML = `
             <div class="${cx('modalContent')}">
                 <div class="${cx('modalHeader')}">
@@ -267,16 +248,13 @@ const Checkout = () => {
             </div>
         `;
         
-        // Thêm modal vào body
         document.body.appendChild(modalContainer);
         
-        // Xử lý sự kiện đóng modal
         const closeBtn = modalContainer.querySelector(`.${cx('closeBtn')}`);
         closeBtn.addEventListener('click', () => {
             document.body.removeChild(modalContainer);
         });
         
-        // Xử lý sự kiện quay lại giỏ hàng
         const returnCartBtn = modalContainer.querySelector(`.${cx('returnCartBtn')}`);
         returnCartBtn.addEventListener('click', () => {
             document.body.removeChild(modalContainer);
@@ -284,11 +262,9 @@ const Checkout = () => {
         });
     };
 
-    // Tính thuế và tổng tiền 
-    const taxAmount = 0; // Đã bỏ thuế
-    const shippingAmount = 0; // Miễn phí vận chuyển
+    const taxAmount = 0;
+    const shippingAmount = 0;
     const discountAmount = parseInt(localStorage.getItem('discountAmount')) || 0;
-    // Tính đúng tổng tiền: tạm tính - giảm giá + phí vận chuyển
     const totalAmount = cartTotal - discountAmount + shippingAmount;
 
     return (

@@ -9,7 +9,6 @@ export const AuthProvider = ({ children }) => {
     const [token, setToken] = useState(localStorage.getItem('token') || null);
     const [loading, setLoading] = useState(true);
 
-    // Thiết lập token cho axios khi token thay đổi
     useEffect(() => {
         if (token) {
             localStorage.setItem('token', token);

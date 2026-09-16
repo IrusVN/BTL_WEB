@@ -31,7 +31,6 @@ const CartSchema = new mongoose.Schema({
     }
 }, { timestamps: true });
 
-// Trước khi lưu giỏ hàng, tính toán tổng tiền
 CartSchema.pre('save', function(next) {
     this.totalAmount = this.items.reduce((total, item) => total + (item.price * item.quantity), 0);
     next();
