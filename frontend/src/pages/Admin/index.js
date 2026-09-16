@@ -786,15 +786,15 @@ function Admin() {
     };
 
     const handleCleanBase64Images = async () => {
-        if (!window.confirm("Bạn có chắc chắn muốn dọn dẹp các ảnh Base64 cũ trong database? Các ảnh dung lượng lớn sẽ được thay thế bằng ảnh nhẹ để tăng tốc độ website.")) {
+        if (!window.confirm("Hệ thống sẽ chuyển toàn bộ ảnh Base64 hiện tại của sản phẩm tải trực tiếp lên Cloudflare R2 và lưu link ảnh R2 vào database.\n\nTất cả ảnh thật của sản phẩm sẽ được giữ nguyên 100% (không bị mất ảnh)!\n\nBạn có muốn bắt đầu chuyển đổi không?")) {
             return;
         }
 
         showToast({
-            title: "Đang dọn dẹp",
-            message: "Đang quét và tối ưu database...",
+            title: "Đang chuyển đổi",
+            message: "Đang tải ảnh từ database lên Cloudflare R2...",
             type: "info",
-            duration: 3000
+            duration: 4000
         });
 
         try {
@@ -2293,10 +2293,10 @@ function Admin() {
                                                     alignItems: 'center',
                                                     gap: '8px'
                                                 }}
-                                                title="Quét và thay thế ảnh Base64 nặng bằng ảnh mẫu nhẹ để website tải tức thì"
+                                                title="Tự động trích xuất ảnh hiện tại trong database tải lên Cloudflare R2 để giữ nguyên 100% ảnh và tăng tốc độ web"
                                             >
-                                                <i className="fas fa-magic" style={{ color: 'var(--color-gold, #D4AF37)' }}></i>
-                                                Tối ưu ảnh cũ
+                                                <i className="fas fa-cloud-upload-alt" style={{ color: 'var(--color-gold, #D4AF37)' }}></i>
+                                                Chuyển ảnh sang R2
                                             </button>
                                         </div>
 

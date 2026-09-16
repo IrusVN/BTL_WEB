@@ -60,7 +60,7 @@ exports.getProducts = async (req, res) => {
             filter.brand = new RegExp(`^\\s*${escapedBrand}\\s*$`, 'i');
         }
 
-        let query = Product.find(filter);
+        let query = Product.find(filter).lean();
 
         const parsedLimit = parseInt(limit, 10);
         if (parsedLimit > 0) {
@@ -357,24 +357,62 @@ exports.uploadProductImages = async (req, res) => {
     }
 };
 
+function parseBase64Image(dataString) {
+    const matches = dataString.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (matches && matches.length === 3) {
+        const mimeType = matches[1];
+        let ext = 'jpg';
+        if (mimeType.includes('png')) ext = 'png';
+        else if (mimeType.includes('webp')) ext = 'webp';
+        else if (mimeType.includes('gif')) ext = 'gif';
+        return {
+            mimeType,
+            ext,
+            buffer: Buffer.from(matches[2], 'base64')
+        };
+    }
+    return {
+        mimeType: 'image/jpeg',
+        ext: 'jpg',
+        buffer: Buffer.from(dataString, 'base64')
+    };
+}
+
 exports.cleanBase64Images = async (req, res) => {
     try {
         const products = await Product.find({});
         let updatedCount = 0;
+        let imageCount = 0;
 
         for (const product of products) {
             let hasBase64 = false;
             if (product.images && product.images.length > 0) {
-                const cleanedImages = product.images.map(img => {
+                const newImages = [];
+                for (let i = 0; i < product.images.length; i++) {
+                    const img = product.images[i];
                     if (img.url && (img.url.startsWith('data:image/') || img.url.length > 1000)) {
                         hasBase64 = true;
-                        return { url: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&auto=format&fit=crop&q=80' };
+                        try {
+                            const parsed = parseBase64Image(img.url);
+                            const r2Url = await uploadToR2({
+                                buffer: parsed.buffer,
+                                mimeType: parsed.mimeType,
+                                originalName: `${product.code || 'product'}-${i}-${Date.now()}.${parsed.ext}`,
+                                folder: 'products'
+                            });
+                            newImages.push({ url: r2Url });
+                            imageCount++;
+                        } catch (uploadErr) {
+                            console.error(`Lỗi khi chuyển ảnh ${i} của sản phẩm ${product.name} lên R2:`, uploadErr);
+                            newImages.push(img);
+                        }
+                    } else {
+                        newImages.push(img);
                     }
-                    return img;
-                });
+                }
 
                 if (hasBase64) {
-                    product.images = cleanedImages;
+                    product.images = newImages;
                     await product.save({ validateBeforeSave: false });
                     updatedCount++;
                 }
@@ -383,11 +421,12 @@ exports.cleanBase64Images = async (req, res) => {
 
         res.status(200).json({
             success: true,
-            message: `Đã dọn dẹp ${updatedCount} sản phẩm chứa ảnh Base64`,
-            updatedCount
+            message: `Đã chuyển đổi thành công ${imageCount} ảnh của ${updatedCount} sản phẩm lên Cloudflare R2 mà không mất ảnh!`,
+            updatedCount,
+            imageCount
         });
     } catch (error) {
-        console.error('Lỗi khi dọn dẹp ảnh Base64:', error);
+        console.error('Lỗi khi chuyển đổi ảnh Base64 lên R2:', error);
         res.status(500).json({
             success: false,
             message: error.message
