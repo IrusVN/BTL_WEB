@@ -1,4 +1,5 @@
 const Product = require('../models/Product');
+const { uploadToR2 } = require('../services/r2Service');
 
 exports.createProduct = async (req, res) => {
     try {
@@ -316,6 +317,77 @@ exports.getProductsByCategory = async (req, res) => {
         });
     } catch (error) {
         console.error('Lỗi khi lấy sản phẩm theo danh mục:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
+    }
+};
+
+exports.uploadProductImages = async (req, res) => {
+    try {
+        if (!req.files || req.files.length === 0) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vui lòng chọn ít nhất một hình ảnh'
+            });
+        }
+
+        const uploadPromises = req.files.map(file =>
+            uploadToR2({
+                buffer: file.buffer,
+                mimeType: file.mimetype,
+                originalName: file.originalname,
+                folder: 'products'
+            })
+        );
+
+        const urls = await Promise.all(uploadPromises);
+
+        res.status(200).json({
+            success: true,
+            images: urls.map(url => ({ url }))
+        });
+    } catch (error) {
+        console.error('Lỗi khi tải ảnh lên R2:', error);
+        res.status(500).json({
+            success: false,
+            message: error.message || 'Lỗi khi tải ảnh lên Cloudflare R2'
+        });
+    }
+};
+
+exports.cleanBase64Images = async (req, res) => {
+    try {
+        const products = await Product.find({});
+        let updatedCount = 0;
+
+        for (const product of products) {
+            let hasBase64 = false;
+            if (product.images && product.images.length > 0) {
+                const cleanedImages = product.images.map(img => {
+                    if (img.url && (img.url.startsWith('data:image/') || img.url.length > 1000)) {
+                        hasBase64 = true;
+                        return { url: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&auto=format&fit=crop&q=80' };
+                    }
+                    return img;
+                });
+
+                if (hasBase64) {
+                    product.images = cleanedImages;
+                    await product.save({ validateBeforeSave: false });
+                    updatedCount++;
+                }
+            }
+        }
+
+        res.status(200).json({
+            success: true,
+            message: `Đã dọn dẹp ${updatedCount} sản phẩm chứa ảnh Base64`,
+            updatedCount
+        });
+    } catch (error) {
+        console.error('Lỗi khi dọn dẹp ảnh Base64:', error);
         res.status(500).json({
             success: false,
             message: error.message

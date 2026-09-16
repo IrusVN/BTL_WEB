@@ -36,4 +36,26 @@ export const getProductSuggestions = async (q) => {
     } catch (error) {
         throw error.response ? error.response.data : new Error('Lỗi kết nối server');
     }
+};
+
+export const uploadProductImages = async (files, token) => {
+    try {
+        const formData = new FormData();
+        Array.from(files).forEach(file => {
+            formData.append('images', file);
+        });
+        const headers = {
+            'Content-Type': 'multipart/form-data'
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        const response = await axios.post(`${API_URL}/products/upload-images`, formData, {
+            headers,
+            withCredentials: true
+        });
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Lỗi khi tải ảnh lên Cloudflare R2');
+    }
 }; 

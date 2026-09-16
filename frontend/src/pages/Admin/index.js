@@ -3,6 +3,7 @@ import axios from 'axios';
 import classNames from 'classnames/bind';
 import * as styles from './Admin.module.scss';
 import { API_URL } from '../../services/authService.js';
+import { uploadProductImages } from '../../services/productService.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { showToast } from '../../components/Toast/index.js';
 import { useNavigate } from 'react-router-dom';
@@ -85,6 +86,7 @@ function Admin() {
     const [showEditForm, setShowEditForm] = useState(false);
     const [editingProduct, setEditingProduct] = useState(null);
     const [productImages, setProductImages] = useState([]);
+    const [isUploadingImages, setIsUploadingImages] = useState(false);
     
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -608,28 +610,44 @@ function Admin() {
         setShowAddForm(true);
     };
 
-    const handleImageChange = (e) => {
+    const handleImageChange = async (e) => {
         const files = Array.from(e.target.files);
-        const imagePromises = files.map(file => {
-            return new Promise((resolve, reject) => {
-                const reader = new FileReader();
-                reader.onloadend = () => {
-                    resolve({ url: reader.result });
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(file);
-            });
+        if (!files.length) return;
+
+        setIsUploadingImages(true);
+        showToast({
+            title: "Đang tải ảnh",
+            message: "Đang tải ảnh lên Cloudflare R2...",
+            type: "info",
+            duration: 3000
         });
 
-        Promise.all(imagePromises)
-            .then(images => {
+        try {
+            const data = await uploadProductImages(files, token);
+            if (data.success && data.images) {
                 if (showEditForm) {
-                    setEditingProduct({ ...editingProduct, images });
+                    setEditingProduct({ ...editingProduct, images: data.images });
                 } else {
-                    setNewProduct({ ...newProduct, images });
+                    setNewProduct({ ...newProduct, images: data.images });
                 }
-            })
-            .catch(error => console.error('Lỗi khi xử lý ảnh:', error));
+                showToast({
+                    title: "Thành công",
+                    message: "Tải ảnh lên Cloudflare R2 thành công!",
+                    type: "success",
+                    duration: 3000
+                });
+            }
+        } catch (error) {
+            console.error('Lỗi khi tải ảnh:', error);
+            showToast({
+                title: "Lỗi",
+                message: error.message || "Không thể tải ảnh lên Cloudflare R2. Vui lòng kiểm tra cấu hình!",
+                type: "error",
+                duration: 4000
+            });
+        } finally {
+            setIsUploadingImages(false);
+        }
     };
 
     const handleSaveProduct = () => {
@@ -765,6 +783,49 @@ function Admin() {
                     duration: 3000
                 });
             });
+    };
+
+    const handleCleanBase64Images = async () => {
+        if (!window.confirm("Bạn có chắc chắn muốn dọn dẹp các ảnh Base64 cũ trong database? Các ảnh dung lượng lớn sẽ được thay thế bằng ảnh nhẹ để tăng tốc độ website.")) {
+            return;
+        }
+
+        showToast({
+            title: "Đang dọn dẹp",
+            message: "Đang quét và tối ưu database...",
+            type: "info",
+            duration: 3000
+        });
+
+        try {
+            const response = await axios.post(`${API_URL}/products/admin/clean-base64`, {}, {
+                withCredentials: true,
+                headers: {
+                    'Authorization': `Bearer ${token}`
+                }
+            });
+
+            if (response.data.success) {
+                showToast({
+                    title: "Thành công",
+                    message: response.data.message,
+                    type: "success",
+                    duration: 4000
+                });
+                const res = await axios.get(`${API_URL}/products/products`, { withCredentials: true });
+                if (res.data.success) {
+                    setProducts(res.data.products);
+                }
+            }
+        } catch (error) {
+            console.error('Lỗi khi dọn dẹp database:', error);
+            showToast({
+                title: "Lỗi",
+                message: error.response?.data?.message || "Không thể dọn dẹp database. Vui lòng thử lại!",
+                type: "error",
+                duration: 3000
+            });
+        }
     };
 
     const handleSearch = (e) => {
@@ -2133,9 +2194,18 @@ function Admin() {
                                         multiple
                                         accept="image/*"
                                         onChange={handleImageChange}
+                                        disabled={isUploadingImages}
                                     />
+                                    {isUploadingImages && <p style={{ color: '#D4AF37', fontSize: '13px', margin: '6px 0' }}>Đang tải ảnh lên Cloudflare R2...</p>}
+                                    {newProduct.images && newProduct.images.length > 0 && (
+                                        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', margin: '8px 0' }}>
+                                            {newProduct.images.map((img, idx) => (
+                                                <img key={idx} src={img.url} alt={`Preview ${idx}`} style={{ width: 48, height: 48, objectFit: 'cover', borderRadius: 6, border: '1px solid rgba(255,255,255,0.15)' }} />
+                                            ))}
+                                        </div>
+                                    )}
                                     <div className={cx('form-actions')}>
-                                        <button onClick={handleSaveProduct}>Lưu</button>
+                                        <button onClick={handleSaveProduct} disabled={isUploadingImages}>{isUploadingImages ? 'Đang tải ảnh...' : 'Lưu'}</button>
                                         <button onClick={() => setShowAddForm(false)}>Hủy</button>
                                     </div>
                                 </div>
@@ -2199,13 +2269,36 @@ function Admin() {
                                     </div>
 
                                     <div className={cx('list-toolbar')}>
-                                        <button
-                                            className={cx('add-product-btn')}
-                                            onClick={handleAddProduct}
-                                        >
-                                            <i className="fas fa-plus-circle"></i>
-                                            Thêm sản phẩm mới
-                                        </button>
+                                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+                                            <button
+                                                className={cx('add-product-btn')}
+                                                onClick={handleAddProduct}
+                                            >
+                                                <i className="fas fa-plus-circle"></i>
+                                                Thêm sản phẩm mới
+                                            </button>
+                                            <button
+                                                className={cx('clean-btn')}
+                                                onClick={handleCleanBase64Images}
+                                                style={{
+                                                    background: 'rgba(255, 255, 255, 0.06)',
+                                                    color: 'var(--color-text, #F5F5F7)',
+                                                    border: '1px solid rgba(255, 255, 255, 0.12)',
+                                                    borderRadius: 'var(--radius-full, 999px)',
+                                                    padding: '10px 18px',
+                                                    fontSize: '13px',
+                                                    fontWeight: 500,
+                                                    cursor: 'pointer',
+                                                    display: 'inline-flex',
+                                                    alignItems: 'center',
+                                                    gap: '8px'
+                                                }}
+                                                title="Quét và thay thế ảnh Base64 nặng bằng ảnh mẫu nhẹ để website tải tức thì"
+                                            >
+                                                <i className="fas fa-magic" style={{ color: 'var(--color-gold, #D4AF37)' }}></i>
+                                                Tối ưu ảnh cũ
+                                            </button>
+                                        </div>
 
                                         <div className={cx('product-count')}>
                                             Hiển thị {filteredProducts.length} sản phẩm
@@ -2901,17 +2994,20 @@ function Admin() {
                                     multiple
                                     onChange={handleImageChange}
                                     accept="image/*"
+                                    disabled={isUploadingImages}
                                 />
+                                {isUploadingImages && <p style={{ color: '#D4AF37', fontSize: '13px', margin: '6px 0' }}>Đang tải ảnh lên Cloudflare R2...</p>}
                                 <small>Có thể chọn nhiều hình ảnh. Nếu thêm hình ảnh mới, các hình ảnh cũ sẽ bị thay thế.</small>
                             </div>
                         </div>
-                        
+
                         <div className={cx('modal-footer')}>
-                            <button 
+                            <button
                                 className={cx('save-btn')}
                                 onClick={handleUpdateProduct}
+                                disabled={isUploadingImages}
                             >
-                                Cập nhật sản phẩm
+                                {isUploadingImages ? 'Đang tải ảnh...' : 'Cập nhật sản phẩm'}
                             </button>
                             <button 
                                 className={cx('cancel-btn')}
