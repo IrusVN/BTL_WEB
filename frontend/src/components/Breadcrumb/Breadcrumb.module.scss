@@ -1,0 +1,50 @@
+@use '../../styles/tokens' as *;
+
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 20px;
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+
+    a, .breadcrumb-link {
+        color: var(--color-text-secondary);
+        text-decoration: none;
+        transition: color var(--duration-micro) ease;
+        white-space: nowrap;
+
+        &:hover {
+            color: var(--color-gold);
+        }
+    }
+
+    .breadcrumb-sep {
+        font-size: 9px;
+        opacity: 0.45;
+        flex-shrink: 0;
+    }
+
+    span, .breadcrumb-current {
+        color: var(--color-text);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 360px;
+    }
+
+    @media (max-width: 576px) {
+        font-size: 12px;
+        gap: 6px;
+        margin-bottom: 16px;
+
+        .breadcrumb-sep {
+            font-size: 8px;
+        }
+
+        .breadcrumb-current {
+            max-width: 220px;
+        }
+    }
+}

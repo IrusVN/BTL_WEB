@@ -8,10 +8,11 @@ import { useAuth } from '../../context/AuthContext.js';
 import { showToast } from '../../components/Toast/index.js';
 import QuickView from '../../components/QuickView/index.js';
 import ImageLightbox from '../../components/ImageLightbox/index.js';
+import ThemeToggle from '../../components/ThemeToggle/index.js';
 import { useNavigate, useLocation } from 'react-router-dom';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faTachometerAlt, faFileInvoice, faUsers, faSignOutAlt, faSearch, faPlus, faEye, faPencilAlt, faTrash, faTimes, faBars, faComments, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
+import { faTachometerAlt, faFileInvoice, faUsers, faSignOutAlt, faSearch, faPlus, faEye, faPencilAlt, faTrash, faTimes, faBars, faComments, faPaperPlane, faBox, faShieldAlt, faCrown, faChevronRight, faChevronLeft } from '@fortawesome/free-solid-svg-icons';
 import { useHead } from '../../hooks/useHead.js';
 
 const cx = classNames.bind(styles);
@@ -28,7 +29,7 @@ const adminTabs = [
 
 function Admin() {
     useHead('Quản trị');
-    const { token, user } = useAuth();
+    const { token, user, logout } = useAuth();
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -144,6 +145,13 @@ function Admin() {
     };
     
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
+        try {
+            return localStorage.getItem('admin_sidebar_collapsed') === 'true';
+        } catch {
+            return false;
+        }
+    });
 
     const [conversations, setConversations] = useState([]);
     const [selectedConversation, setSelectedConversation] = useState(null);
@@ -154,8 +162,24 @@ function Admin() {
     const [conversationSearchTerm, setConversationSearchTerm] = useState('');
     const messagesEndRef = React.useRef(null);
 
+    const toggleCollapse = () => {
+        setIsSidebarCollapsed((prev) => {
+            const next = !prev;
+            try {
+                localStorage.setItem('admin_sidebar_collapsed', String(next));
+            } catch (e) {
+                console.error(e);
+            }
+            return next;
+        });
+    };
+
     const toggleSidebar = () => {
-        setIsSidebarOpen(!isSidebarOpen);
+        if (window.innerWidth <= 768) {
+            setIsSidebarOpen(!isSidebarOpen);
+        } else {
+            toggleCollapse();
+        }
     };
 
     const handleMenuItemClick = (tab) => {
@@ -276,7 +300,7 @@ function Admin() {
                 type: "error",
                 duration: 3000
             });
-            navigate('/login?adminRequired=true');
+            navigate('/login');
             return;
         }
 
@@ -287,7 +311,7 @@ function Admin() {
                 type: "error",
                 duration: 3000
             });
-            navigate('/login?adminRequired=true');
+            navigate('/');
             return;
         }
 
@@ -1102,33 +1126,52 @@ function Admin() {
     };
     
     const handleAddUser = () => {
+        setSelectedUser(null);
         setNewUser({
             name: '',
             email: '',
             password: '',
             role: 'user',
             phone: '',
+            phoneNumber: '',
             address: ''
         });
         setIsEditingUser(false);
         setShowUserModal(true);
     };
-    
+
     const handleEditUser = (userData) => {
+        setSelectedUser(userData);
         setNewUser({
             _id: userData._id,
             name: userData.name || '',
             email: userData.email || '',
             password: '',
             role: userData.role || 'user',
-            phone: userData.phone || '',
-            address: userData.address || ''
+            phone: userData.phoneNumber || userData.phone || '',
+            phoneNumber: userData.phoneNumber || userData.phone || '',
+            address: Array.isArray(userData.address) && userData.address.length > 0
+                ? [userData.address[0]?.street, userData.address[0]?.city].filter(Boolean).join(', ')
+                : (typeof userData.address === 'string' ? userData.address : '')
         });
         setIsEditingUser(true);
         setShowUserModal(true);
     };
-    
+
     const handleDeleteUser = async (userId) => {
+        if (user && (String(user._id || user.id) === String(userId))) {
+            showToast({
+                title: "Thao tác bị chặn",
+                message: "Bạn không thể xóa tài khoản của chính mình!",
+                type: "warning",
+                duration: 3000
+            });
+            return;
+        }
+
+        const confirmDelete = window.confirm("Bạn có chắc chắn muốn xóa người dùng này không?");
+        if (!confirmDelete) return;
+
         try {
             const response = await axios.delete(`${API_URL}/users/${userId}`, {
                 withCredentials: true,
@@ -1136,11 +1179,12 @@ function Admin() {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            
+
             if (response.data.success) {
-                const updatedUsers = users.filter(user => user._id !== userId);
+                const updatedUsers = users.filter(u => u._id !== userId);
                 setUsers(updatedUsers);
-                
+                setFilteredUsers(prev => prev.filter(u => u._id !== userId));
+
                 showToast({
                     title: "Thành công",
                     message: "Đã xóa người dùng thành công",
@@ -1150,7 +1194,7 @@ function Admin() {
             } else {
                 showToast({
                     title: "Lỗi",
-                    message: "Không thể xóa người dùng",
+                    message: response.data.message || "Không thể xóa người dùng",
                     type: "error",
                     duration: 3000
                 });
@@ -1165,12 +1209,12 @@ function Admin() {
             });
         }
     };
-    
+
     const handleSaveUser = async () => {
         try {
             let response;
-            
-            if (!newUser.name || !newUser.email) {
+
+            if (!newUser.name?.trim() || !newUser.email?.trim()) {
                 showToast({
                     title: "Lỗi",
                     message: "Vui lòng nhập tên và email",
@@ -1179,13 +1223,30 @@ function Admin() {
                 });
                 return;
             }
-            
+
             if (isEditingUser) {
-                const userData = { ...newUser };
-                if (!userData.password) {
-                    delete userData.password;
+                const userData = {
+                    name: newUser.name.trim(),
+                    email: newUser.email.trim(),
+                    role: newUser.role || 'user',
+                    phone: newUser.phone?.trim() || '',
+                    phoneNumber: newUser.phone?.trim() || '',
+                    address: newUser.address ? [{ street: newUser.address.trim(), city: '', country: 'Việt Nam' }] : []
+                };
+
+                if (newUser.password && newUser.password.trim() !== '') {
+                    if (newUser.password.length < 6) {
+                        showToast({
+                            title: "Mật khẩu yếu",
+                            message: "Mật khẩu mới phải có ít nhất 6 ký tự",
+                            type: "warning",
+                            duration: 3000
+                        });
+                        return;
+                    }
+                    userData.password = newUser.password.trim();
                 }
-                
+
                 response = await axios.put(
                     `${API_URL}/users/${newUser._id}`,
                     userData,
@@ -1197,7 +1258,7 @@ function Admin() {
                     }
                 );
             } else {
-                if (!newUser.password) {
+                if (!newUser.password || newUser.password.trim() === '') {
                     showToast({
                         title: "Lỗi",
                         message: "Vui lòng nhập mật khẩu",
@@ -1206,10 +1267,30 @@ function Admin() {
                     });
                     return;
                 }
-                
+
+                if (newUser.password.length < 6) {
+                    showToast({
+                        title: "Mật khẩu yếu",
+                        message: "Mật khẩu phải có ít nhất 6 ký tự",
+                        type: "warning",
+                        duration: 3000
+                    });
+                    return;
+                }
+
+                const createData = {
+                    name: newUser.name.trim(),
+                    email: newUser.email.trim(),
+                    password: newUser.password.trim(),
+                    role: newUser.role || 'user',
+                    phone: newUser.phone?.trim() || '',
+                    phoneNumber: newUser.phone?.trim() || '',
+                    address: newUser.address ? [{ street: newUser.address.trim(), city: '', country: 'Việt Nam' }] : []
+                };
+
                 response = await axios.post(
-                    `${API_URL}/users/register`,
-                    newUser,
+                    `${API_URL}/users`,
+                    createData,
                     {
                         withCredentials: true,
                         headers: {
@@ -1218,12 +1299,13 @@ function Admin() {
                     }
                 );
             }
-            
+
             if (response.data.success) {
                 fetchUsers();
-                
+
                 setShowUserModal(false);
-                
+                setSelectedUser(null);
+
                 showToast({
                     title: "Thành công",
                     message: isEditingUser ? "Đã cập nhật người dùng" : "Đã thêm người dùng mới",
@@ -1866,16 +1948,23 @@ function Admin() {
                                                 <td>
                                                     <div className={cx('action-buttons')}>
                                                         <button
+                                                            className={cx('view-btn')}
+                                                            onClick={() => navigate(`/admin/users/${user._id}`)}
+                                                            title="Xem chi tiết người dùng"
+                                                        >
+                                                            <FontAwesomeIcon icon={faEye} />
+                                                        </button>
+                                                        <button
                                                             className={cx('edit-btn')}
                                                             onClick={() => handleEditUser(user)}
-                                                            title="Chỉnh sửa"
+                                                            title="Chỉnh sửa nhanh"
                                                         >
                                                             <i className="fas fa-pencil-alt"></i>
                                                         </button>
                                                         <button
                                                             className={cx('delete-btn')}
                                                             onClick={() => handleDeleteUser(user._id)}
-                                                            title="Xóa"
+                                                            title="Xóa người dùng"
                                                         >
                                                             <i className="fas fa-trash"></i>
                                                         </button>
@@ -1923,13 +2012,19 @@ function Admin() {
                                             </div>
                                         </div>
                                         <div className={cx('user-mobile-actions')}>
-                                            <button 
+                                            <button
+                                                className={cx('view-btn')}
+                                                onClick={() => navigate(`/admin/users/${user._id}`)}
+                                            >
+                                                <FontAwesomeIcon icon={faEye} /> Chi tiết
+                                            </button>
+                                            <button
                                                 className={cx('edit-btn')}
                                                 onClick={() => handleEditUser(user)}
                                             >
                                                 <i className="fas fa-pencil-alt"></i> Sửa
                                             </button>
-                                            <button 
+                                            <button
                                                 className={cx('delete-btn')}
                                                 onClick={() => handleDeleteUser(user._id)}
                                             >
@@ -1942,93 +2037,6 @@ function Admin() {
                                 <div className={cx('no-data')}>Không tìm thấy người dùng nào</div>
                             )}
                         </div>
-                        
-                        {/* Modal thêm/chỉnh sửa người dùng */}
-                        {showUserModal && (
-                            <div className={cx('user-modal')}>
-                                <div className={cx('modal-content')}>
-                                    <div className={cx('modal-header')}>
-                                        <h3>{selectedUser ? "Cập nhật người dùng" : "Thêm người dùng mới"}</h3>
-                                        <button 
-                                            className={cx('close-btn')}
-                                            onClick={() => setShowUserModal(false)}
-                                        >
-                                            <i className="fas fa-times"></i>
-                                        </button>
-                                    </div>
-                                    
-                                    <div className={cx('modal-body')}>
-                                        <div className={cx('form-group')}>
-                                            <label>Họ tên</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Nhập họ tên"
-                                                value={newUser.name}
-                                                onChange={(e) => setNewUser({...newUser, name: e.target.value})}
-                                            />
-                                        </div>
-                                        
-                                        <div className={cx('form-group')}>
-                                            <label>Email</label>
-                                            <input
-                                                type="email"
-                                                placeholder="Nhập email"
-                                                value={newUser.email}
-                                                onChange={(e) => setNewUser({...newUser, email: e.target.value})}
-                                            />
-                                        </div>
-                                        
-                                        <div className={cx('form-group')}>
-                                            <label>Số điện thoại</label>
-                                            <input
-                                                type="text"
-                                                placeholder="Nhập số điện thoại"
-                                                value={newUser.phone}
-                                                onChange={(e) => setNewUser({...newUser, phone: e.target.value})}
-                                            />
-                                        </div>
-                                        
-                                        {!selectedUser && (
-                                            <div className={cx('form-group')}>
-                                                <label>Mật khẩu</label>
-                                                <input
-                                                    type="password"
-                                                    placeholder="Nhập mật khẩu"
-                                                    value={newUser.password}
-                                                    onChange={(e) => setNewUser({...newUser, password: e.target.value})}
-                                                />
-                                            </div>
-                                        )}
-                                        
-                                        <div className={cx('form-group')}>
-                                            <label>Vai trò</label>
-                                            <select
-                                                value={newUser.role}
-                                                onChange={(e) => setNewUser({...newUser, role: e.target.value})}
-                                            >
-                                                <option value="user">Người dùng</option>
-                                                <option value="admin">Quản trị viên</option>
-                                            </select>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className={cx('modal-footer')}>
-                                        <button 
-                                            className={cx('save-btn')}
-                                            onClick={handleSaveUser}
-                                        >
-                                            {selectedUser ? "Cập nhật" : "Lưu thông tin"}
-                                        </button>
-                                        <button 
-                                            className={cx('cancel-btn')}
-                                            onClick={() => setShowUserModal(false)}
-                                        >
-                                            Hủy
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 );
             case 'products':
@@ -2555,6 +2563,12 @@ function Admin() {
     };
 
     const renderSidebar = () => {
+        const totalUnreadMessages = conversations.reduce((acc, c) => acc + (c.unreadCount || 0), 0);
+        const productsCount = dashboardStats.totalProducts || products.length;
+        const invoicesCount = dashboardStats.totalOrders || invoices.length;
+        const usersCount = dashboardStats.totalUsers || users.length;
+        const adminInitial = (user?.name || 'A').charAt(0).toUpperCase();
+
         return (
             <>
                 {/* Backdrop mờ phía sau trên mobile khi sidebar mở */}
@@ -2565,102 +2579,266 @@ function Admin() {
                 />
 
                 <aside
-                    className={cx('sidebar', { 'sidebar-closed': !isSidebarOpen })}
+                    className={cx('sidebar', {
+                        'sidebar-closed': !isSidebarOpen,
+                        'sidebar-collapsed': isSidebarCollapsed
+                    })}
                     aria-label="Thanh điều hướng quản trị"
                 >
-                    {/* Header đóng menu chỉ hiển thị trên mobile */}
-                    <div className={cx('sidebar-mobile-header')}>
-                        <span className={cx('sidebar-mobile-title')}>
-                            Menu Quản trị
-                        </span>
-                        <button
-                            type="button"
-                            className={cx('close-sidebar-btn')}
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                setIsSidebarOpen(false);
-                            }}
-                            aria-label="Đóng menu"
-                        >
-                            <FontAwesomeIcon icon={faTimes} />
-                        </button>
+                    {/* Brand Header */}
+                    <div className={cx('sidebar-brand', { 'brand-collapsed': isSidebarCollapsed })}>
+                        {isSidebarCollapsed ? (
+                            <button
+                                type="button"
+                                className={cx('collapsed-brand-toggle')}
+                                onClick={toggleCollapse}
+                                title="Mở rộng thanh menu"
+                                aria-label="Mở rộng thanh menu"
+                            >
+                                <div className={cx('brand-logo')}>
+                                    <FontAwesomeIcon icon={faShieldAlt} className={cx('brand-icon')} />
+                                </div>
+                                <span className={cx('collapsed-chevron-badge')}>
+                                    <FontAwesomeIcon icon={faChevronRight} />
+                                </span>
+                            </button>
+                        ) : (
+                            <>
+                                <div className={cx('brand-identity')}>
+                                    <div className={cx('brand-logo')} title="TEAM2HAND Portal Quản trị">
+                                        <FontAwesomeIcon icon={faShieldAlt} className={cx('brand-icon')} />
+                                    </div>
+                                    <div className={cx('brand-text-stack')}>
+                                        <span className={cx('brand-name')}>TEAM2HAND</span>
+                                        <span className={cx('brand-badge')}>PORTAL QUẢN TRỊ</span>
+                                    </div>
+                                </div>
+                                <div className={cx('brand-actions')}>
+                                    <button
+                                        type="button"
+                                        className={cx('toggle-collapse-btn')}
+                                        onClick={toggleCollapse}
+                                        title="Thu gọn thanh menu"
+                                        aria-label="Thu gọn thanh menu"
+                                    >
+                                        <FontAwesomeIcon icon={faChevronLeft} />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        className={cx('close-sidebar-btn')}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            e.preventDefault();
+                                            setIsSidebarOpen(false);
+                                        }}
+                                        aria-label="Đóng menu"
+                                    >
+                                        <FontAwesomeIcon icon={faTimes} />
+                                    </button>
+                                </div>
+                            </>
+                        )}
                     </div>
-                <ul className={cx('sidebar-menu')}>
-                    <li className={cx('sidebar-item')}>
-                        <a 
-                            className={cx('sidebar-link', { active: activeTab === 'dashboard' })}
-                            onClick={() => handleMenuItemClick('dashboard')}
+
+                    {/* Scrollable Navigation Area */}
+                    <div className={cx('sidebar-scroll')}>
+                        {/* Nhóm 1: TỔNG QUAN */}
+                        <div className={cx('sidebar-group')}>
+                            {!isSidebarCollapsed && (
+                                <span className={cx('sidebar-group-title')}>Tổng quan</span>
+                            )}
+                            <ul className={cx('sidebar-menu')}>
+                                <li className={cx('sidebar-item')}>
+                                    <button
+                                        type="button"
+                                        className={cx('sidebar-link', { active: activeTab === 'dashboard' })}
+                                        onClick={() => handleMenuItemClick('dashboard')}
+                                        title={isSidebarCollapsed ? "Bảng điều khiển" : undefined}
+                                    >
+                                        <div className={cx('sidebar-link-main')}>
+                                            <div className={cx('sidebar-icon-box')}>
+                                                <FontAwesomeIcon icon={faTachometerAlt} />
+                                            </div>
+                                            <span className={cx('sidebar-text')}>Bảng điều khiển</span>
+                                        </div>
+                                        <span className={cx('active-indicator')} />
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+
+                        {/* Nhóm 2: CỬA HÀNG & KHO */}
+                        <div className={cx('sidebar-group')}>
+                            {!isSidebarCollapsed ? (
+                                <span className={cx('sidebar-group-title')}>Cửa hàng & Kho</span>
+                            ) : (
+                                <div className={cx('sidebar-group-divider')} />
+                            )}
+                            <ul className={cx('sidebar-menu')}>
+                                <li className={cx('sidebar-item')}>
+                                    <button
+                                        type="button"
+                                        className={cx('sidebar-link', { active: activeTab === 'products' })}
+                                        onClick={() => handleMenuItemClick('products')}
+                                        title={isSidebarCollapsed ? `Quản lý sản phẩm (${productsCount})` : undefined}
+                                    >
+                                        <div className={cx('sidebar-link-main')}>
+                                            <div className={cx('sidebar-icon-box')}>
+                                                <FontAwesomeIcon icon={faBox} />
+                                                {isSidebarCollapsed && productsCount > 0 && (
+                                                    <span className={cx('sidebar-badge-mini')}>
+                                                        {productsCount > 99 ? '99+' : productsCount}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className={cx('sidebar-text')}>Quản lý sản phẩm</span>
+                                        </div>
+                                        {!isSidebarCollapsed && productsCount > 0 && (
+                                            <span className={cx('sidebar-badge')}>{productsCount}</span>
+                                        )}
+                                        <span className={cx('active-indicator')} />
+                                    </button>
+                                </li>
+                                <li className={cx('sidebar-item')}>
+                                    <button
+                                        type="button"
+                                        className={cx('sidebar-link', { active: activeTab === 'invoices' })}
+                                        onClick={() => handleMenuItemClick('invoices')}
+                                        title={isSidebarCollapsed ? `Quản lý hóa đơn (${invoicesCount})` : undefined}
+                                    >
+                                        <div className={cx('sidebar-link-main')}>
+                                            <div className={cx('sidebar-icon-box')}>
+                                                <FontAwesomeIcon icon={faFileInvoice} />
+                                                {isSidebarCollapsed && invoicesCount > 0 && (
+                                                    <span className={cx('sidebar-badge-mini')}>
+                                                        {invoicesCount > 99 ? '99+' : invoicesCount}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className={cx('sidebar-text')}>Quản lý hóa đơn</span>
+                                        </div>
+                                        {!isSidebarCollapsed && invoicesCount > 0 && (
+                                            <span className={cx('sidebar-badge')}>{invoicesCount}</span>
+                                        )}
+                                        <span className={cx('active-indicator')} />
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+
+                        {/* Nhóm 3: DỊCH VỤ & HỖ TRỢ */}
+                        <div className={cx('sidebar-group')}>
+                            {!isSidebarCollapsed ? (
+                                <span className={cx('sidebar-group-title')}>Dịch vụ & Khách hàng</span>
+                            ) : (
+                                <div className={cx('sidebar-group-divider')} />
+                            )}
+                            <ul className={cx('sidebar-menu')}>
+                                <li className={cx('sidebar-item')}>
+                                    <button
+                                        type="button"
+                                        className={cx('sidebar-link', { active: activeTab === 'users' })}
+                                        onClick={() => handleMenuItemClick('users')}
+                                        title={isSidebarCollapsed ? `Quản lý người dùng (${usersCount})` : undefined}
+                                    >
+                                        <div className={cx('sidebar-link-main')}>
+                                            <div className={cx('sidebar-icon-box')}>
+                                                <FontAwesomeIcon icon={faUsers} />
+                                                {isSidebarCollapsed && usersCount > 0 && (
+                                                    <span className={cx('sidebar-badge-mini')}>
+                                                        {usersCount > 99 ? '99+' : usersCount}
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className={cx('sidebar-text')}>Quản lý người dùng</span>
+                                        </div>
+                                        {!isSidebarCollapsed && usersCount > 0 && (
+                                            <span className={cx('sidebar-badge')}>{usersCount}</span>
+                                        )}
+                                        <span className={cx('active-indicator')} />
+                                    </button>
+                                </li>
+                                <li className={cx('sidebar-item')}>
+                                    <button
+                                        type="button"
+                                        className={cx('sidebar-link', { active: activeTab === 'chat' })}
+                                        onClick={() => handleMenuItemClick('chat')}
+                                        title={isSidebarCollapsed ? (totalUnreadMessages > 0 ? `Hội thoại & Hỗ trợ (${totalUnreadMessages} tin mới)` : "Hội thoại & Hỗ trợ") : undefined}
+                                    >
+                                        <div className={cx('sidebar-link-main')}>
+                                            <div className={cx('sidebar-icon-box')}>
+                                                <FontAwesomeIcon icon={faComments} />
+                                                {isSidebarCollapsed && totalUnreadMessages > 0 && (
+                                                    <span className={cx('sidebar-badge-mini', 'badge-unread-mini')}>
+                                                        <span className={cx('pulse-dot')} />
+                                                    </span>
+                                                )}
+                                            </div>
+                                            <span className={cx('sidebar-text')}>Hội thoại & Hỗ trợ</span>
+                                        </div>
+                                        {!isSidebarCollapsed && (
+                                            totalUnreadMessages > 0 ? (
+                                                <span className={cx('sidebar-badge', 'badge-unread')}>
+                                                    <span className={cx('pulse-dot')} />
+                                                    {totalUnreadMessages}
+                                                </span>
+                                            ) : conversations.length > 0 ? (
+                                                <span className={cx('sidebar-badge')}>{conversations.length}</span>
+                                            ) : null
+                                        )}
+                                        <span className={cx('active-indicator')} />
+                                    </button>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    {/* Docked Executive Footer */}
+                    <div className={cx('sidebar-footer', { 'footer-collapsed': isSidebarCollapsed })}>
+                        <div
+                            className={cx('admin-profile-card')}
+                            title={isSidebarCollapsed ? `${user?.name || 'Administrator'} • Quản trị viên` : undefined}
                         >
-                            <FontAwesomeIcon icon={faTachometerAlt} />
-                            <span className={cx('sidebar-text')}>Bảng điều khiển</span>
-                        </a>
-                    </li>
-                    <li className={cx('sidebar-item')}>
-                        <a 
-                            className={cx('sidebar-link', { active: activeTab === 'products' })}
-                            onClick={() => handleMenuItemClick('products')}
-                        >
-                            <i className="fas fa-box"></i>
-                            <span className={cx('sidebar-text')}>Quản lý sản phẩm</span>
-                        </a>
-                    </li>
-                    <li className={cx('sidebar-item')}>
-                        <a 
-                            className={cx('sidebar-link', { active: activeTab === 'invoices' })}
-                            onClick={() => handleMenuItemClick('invoices')}
-                        >
-                            <FontAwesomeIcon icon={faFileInvoice} />
-                            <span className={cx('sidebar-text')}>Quản lý hóa đơn</span>
-                        </a>
-                    </li>
-                    <li className={cx('sidebar-item')}>
-                        <a 
-                            className={cx('sidebar-link', { active: activeTab === 'users' })}
-                            onClick={() => handleMenuItemClick('users')}
-                        >
-                            <FontAwesomeIcon icon={faUsers} />
-                            <span className={cx('sidebar-text')}>Quản lý người dùng</span>
-                        </a>
-                    </li>
-                    <li className={cx('sidebar-item')}>
-                        <a 
-                            className={cx('sidebar-link', { active: activeTab === 'chat' })}
-                            onClick={() => handleMenuItemClick('chat')}
-                        >
-                            <FontAwesomeIcon icon={faComments} />
-                            <span className={cx('sidebar-text')}>Quản lý cuộc hội thoại</span>
-                        </a>
-                    </li>
-                    <li className={cx('sidebar-item')}>
-                        <a
-                            className={cx('sidebar-link')}
-                            onClick={() => {
-                                if (window.innerWidth <= 768) setIsSidebarOpen(false);
-                                navigate('/');
-                            }}
-                        >
-                            <i className="fas fa-home"></i>
-                            <span className={cx('sidebar-text')}>Trang chủ</span>
-                        </a>
-                    </li>
-                    <li className={cx('sidebar-item')}>
-                        <a
-                            className={cx('sidebar-link')}
-                            onClick={() => {
-                                if (window.innerWidth <= 768) setIsSidebarOpen(false);
-                                localStorage.removeItem('token');
-                                navigate('/login');
-                            }}
-                        >
-                            <FontAwesomeIcon icon={faSignOutAlt} />
-                            <span className={cx('sidebar-text')}>Đăng xuất</span>
-                        </a>
-                    </li>
-                </ul>
-            </aside>
-        </>
-    );
+                            <div className={cx('profile-avatar-wrap')}>
+                                <div className={cx('profile-avatar')}>
+                                    {adminInitial}
+                                </div>
+                                <span className={cx('status-dot')} title="Đang trực tuyến" />
+                            </div>
+                            {!isSidebarCollapsed && (
+                                <div className={cx('profile-info')}>
+                                    <span className={cx('profile-name')} title={user?.name || 'Administrator'}>
+                                        {user?.name || 'Administrator'}
+                                    </span>
+                                    <span className={cx('profile-role')}>
+                                        <FontAwesomeIcon icon={faCrown} className={cx('crown-icon')} /> Quản trị viên
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className={cx('footer-actions')}>
+                            <div className={cx('theme-toggle-wrap')} title="Chuyển chế độ Sáng / Tối">
+                                <ThemeToggle compact={isSidebarCollapsed} />
+                            </div>
+                            <button
+                                type="button"
+                                className={cx('logout-button')}
+                                onClick={async () => {
+                                    if (window.innerWidth <= 768) setIsSidebarOpen(false);
+                                    await logout();
+                                    navigate('/login');
+                                }}
+                                title="Đăng xuất khỏi hệ thống"
+                            >
+                                <FontAwesomeIcon icon={faSignOutAlt} />
+                                {!isSidebarCollapsed && <span>Đăng xuất</span>}
+                            </button>
+                        </div>
+                    </div>
+                </aside>
+            </>
+        );
     };
 
     const formatChatTime = (dateString) => {
@@ -2746,18 +2924,31 @@ function Admin() {
         <div className={cx('admin-container')}>
             {renderSidebar()}
             
-            <div className={cx('content', { 'content-expanded': !isSidebarOpen })}>
+            <div
+                className={cx('content', {
+                    'content-expanded': !isSidebarOpen,
+                    'content-collapsed-sidebar': isSidebarCollapsed && isSidebarOpen
+                })}
+            >
                 <div className={cx('header')}>
-                    <button className={cx('hamburger-btn')} onClick={toggleSidebar}>
-                        <FontAwesomeIcon icon={faBars} />
-                    </button>
-                    <h2>
-                        {activeTab === 'dashboard' && 'Bảng điều khiển'}
-                        {activeTab === 'products' && 'Quản lý sản phẩm'}
-                        {activeTab === 'invoices' && 'Quản lý hóa đơn'}
-                        {activeTab === 'users' && 'Quản lý người dùng'}
-                        {activeTab === 'chat' && 'Quản lý cuộc hội thoại'}
-                    </h2>
+                    <div className={cx('header-left')}>
+                        <button
+                            type="button"
+                            className={cx('hamburger-btn')}
+                            onClick={toggleSidebar}
+                            title={isSidebarCollapsed ? "Mở rộng thanh menu" : "Thu gọn thanh menu"}
+                            aria-label="Đóng mở menu"
+                        >
+                            <FontAwesomeIcon icon={faBars} />
+                        </button>
+                        <h2>
+                            {activeTab === 'dashboard' && 'Bảng điều khiển'}
+                            {activeTab === 'products' && 'Quản lý sản phẩm'}
+                            {activeTab === 'invoices' && 'Quản lý hóa đơn'}
+                            {activeTab === 'users' && 'Quản lý người dùng'}
+                            {activeTab === 'chat' && 'Quản lý cuộc hội thoại'}
+                        </h2>
+                    </div>
                 </div>
                 
                 {renderContent()}
@@ -3189,6 +3380,172 @@ function Admin() {
                         </div>
                     </div>
                 )}
+            </QuickView>
+
+            {/* Bảng QuickView thêm/sửa người dùng nhanh (Desktop trượt từ phải sang trái, Mobile BottomSheet trượt từ dưới lên) */}
+            <QuickView
+                isOpen={showUserModal}
+                onClose={() => {
+                    setShowUserModal(false);
+                    setSelectedUser(null);
+                }}
+                title={isEditingUser ? "Chỉnh sửa nhanh người dùng" : "Thêm người dùng mới"}
+                subtitle={isEditingUser ? (newUser.email || `ID: #${selectedUser?._id?.slice(-6).toUpperCase()}`) : "Tạo tài khoản người dùng hoặc quản trị viên"}
+                width="540px"
+                extraHeader={
+                    isEditingUser && selectedUser?._id && (
+                        <button
+                            type="button"
+                            className={cx('quickview-open-detail-btn')}
+                            onClick={() => {
+                                const uId = selectedUser._id;
+                                setShowUserModal(false);
+                                setSelectedUser(null);
+                                navigate(`/admin/users/${uId}`);
+                            }}
+                            title="Mở trang chi tiết tài khoản và lịch sử đơn hàng"
+                        >
+                            <i className="fas fa-external-link-alt" />
+                            <span>Chi tiết hồ sơ</span>
+                        </button>
+                    )
+                }
+                footer={
+                    <div className={cx('quickview-user-footer')}>
+                        {isEditingUser && selectedUser?._id ? (
+                            <button
+                                type="button"
+                                className={cx('quickview-full-detail-link')}
+                                onClick={() => {
+                                    const uId = selectedUser._id;
+                                    setShowUserModal(false);
+                                    setSelectedUser(null);
+                                    navigate(`/admin/users/${uId}`);
+                                }}
+                            >
+                                <i className="fas fa-user-edit" />
+                                <span>Xem toàn bộ hồ sơ & đơn hàng</span>
+                            </button>
+                        ) : <div />}
+                        <div className={cx('quickview-action-group')}>
+                            <button
+                                type="button"
+                                className={cx('cancel-btn')}
+                                onClick={() => {
+                                    setShowUserModal(false);
+                                    setSelectedUser(null);
+                                }}
+                            >
+                                Đóng
+                            </button>
+                            <button
+                                type="button"
+                                className={cx('save-btn')}
+                                onClick={handleSaveUser}
+                            >
+                                <i className="fas fa-check" />
+                                <span>{isEditingUser ? "Lưu thay đổi" : "Tạo người dùng"}</span>
+                            </button>
+                        </div>
+                    </div>
+                }
+            >
+                <div className={cx('quickview-user-body')}>
+                    {isEditingUser && selectedUser && (
+                        <div className={cx('user-quick-profile-badge')}>
+                            <div className={cx('user-quick-avatar', selectedUser.role === 'admin' ? 'admin' : '')}>
+                                {newUser.name ? newUser.name.charAt(0).toUpperCase() : 'U'}
+                            </div>
+                            <div className={cx('user-quick-meta')}>
+                                <h4 className={cx('user-quick-name')}>{newUser.name || 'Người dùng'}</h4>
+                                <p className={cx('user-quick-email')}>{newUser.email}</p>
+                            </div>
+                            <span className={cx('role', {
+                                'admin': newUser.role === 'admin',
+                                'user': newUser.role === 'user'
+                            })}>
+                                {newUser.role === 'admin' ? 'Admin' : 'User'}
+                            </span>
+                        </div>
+                    )}
+
+                    <div className={cx('form-group')}>
+                        <label>
+                            Họ và tên <span style={{ color: 'var(--color-price, #FF3B30)' }}>*</span>
+                        </label>
+                        <input
+                            type="text"
+                            placeholder="Nhập họ và tên đầy đủ"
+                            value={newUser.name}
+                            onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                        />
+                    </div>
+
+                    <div className={cx('form-group')}>
+                        <label>
+                            Email đăng nhập <span style={{ color: 'var(--color-price, #FF3B30)' }}>*</span>
+                        </label>
+                        <input
+                            type="email"
+                            placeholder="example@domain.com"
+                            value={newUser.email}
+                            onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                        />
+                    </div>
+
+                    <div className={cx('form-row')}>
+                        <div className={cx('form-group')}>
+                            <label>Số điện thoại</label>
+                            <input
+                                type="text"
+                                placeholder="0912 345 678"
+                                value={newUser.phone}
+                                onChange={(e) => setNewUser({ ...newUser, phone: e.target.value, phoneNumber: e.target.value })}
+                            />
+                        </div>
+
+                        <div className={cx('form-group')}>
+                            <label>
+                                Vai trò tài khoản <span style={{ color: 'var(--color-price, #FF3B30)' }}>*</span>
+                            </label>
+                            <select
+                                value={newUser.role}
+                                onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}
+                            >
+                                <option value="user">Người dùng (User)</option>
+                                <option value="admin">Quản trị viên (Admin)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div className={cx('form-group')}>
+                        <label>
+                            {isEditingUser ? 'Đặt lại mật khẩu mới' : 'Mật khẩu khởi tạo '}
+                            {!isEditingUser && <span style={{ color: 'var(--color-price, #FF3B30)' }}>*</span>}
+                        </label>
+                        <input
+                            type="password"
+                            placeholder={isEditingUser ? "Để trống nếu không đổi mật khẩu (tối thiểu 6 ký tự)" : "Nhập mật khẩu (tối thiểu 6 ký tự)"}
+                            value={newUser.password}
+                            onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                        />
+                        {isEditingUser && (
+                            <small style={{ color: 'var(--color-text-secondary, #A1A1A6)', marginTop: '4px', display: 'block' }}>
+                                Chỉ nhập nếu muốn đặt lại mật khẩu cho tài khoản này.
+                            </small>
+                        )}
+                    </div>
+
+                    <div className={cx('form-group')}>
+                        <label>Địa chỉ liên hệ</label>
+                        <input
+                            type="text"
+                            placeholder="Số nhà, tên đường, quận/huyện, tỉnh/thành"
+                            value={newUser.address}
+                            onChange={(e) => setNewUser({ ...newUser, address: e.target.value })}
+                        />
+                    </div>
+                </div>
             </QuickView>
 
             {/* Modal phóng to ảnh Lightbox */}

@@ -29,7 +29,20 @@ function LoginAndRegister() {
     password: ''
   });
   const [error, setError] = useState('');
-  const [adminRequired, setAdminRequired] = useState(false);
+
+  const [showPasswords, setShowPasswords] = useState({
+    signIn: false,
+    signUp: false,
+    reset: false,
+    resetConfirm: false,
+  });
+
+  const toggleShowPassword = (field) => {
+    setShowPasswords((prev) => ({
+      ...prev,
+      [field]: !prev[field],
+    }));
+  };
 
   const [authView, setAuthView] = useState('auth');
   const [resetToken, setResetToken] = useState('');
@@ -37,14 +50,18 @@ function LoginAndRegister() {
   const [forgotSent, setForgotSent] = useState(false);
 
   useEffect(() => {
+    const pathname = location.pathname;
     const searchParams = new URLSearchParams(location.search);
-    const action = searchParams.get('action');
-    const adminReq = searchParams.get('adminRequired');
 
-    if (action === 'register') {
+    if (pathname === '/register') {
       toggleToSignUp();
       setAuthView('auth');
-    } else if (action === 'forgotpassword') {
+    } else if (pathname === '/forgot-password') {
+      toggleToSignIn();
+      setError('');
+      setAuthView('forgot');
+      setForgotSent(false);
+    } else if (pathname === '/reset-password') {
       toggleToSignIn();
       setError('');
       const token = searchParams.get('token');
@@ -55,22 +72,7 @@ function LoginAndRegister() {
       toggleToSignIn();
       setAuthView('auth');
     }
-
-    if (adminReq === 'true') {
-      setAdminRequired(true);
-      if (user && user.role !== 'admin') {
-        setError('Bạn cần đăng nhập bằng tài khoản có quyền admin để truy cập trang này');
-        showToast({
-          title: "Yêu cầu quyền Admin",
-          message: "Bạn cần đăng nhập bằng tài khoản có quyền admin để truy cập trang này",
-          type: "warning",
-          duration: 5000
-        });
-      }
-    } else {
-      setAdminRequired(false);
-    }
-  }, [location, user]);
+  }, [location]);
 
   const handleChange = (e) => {
     setFormData({
@@ -177,17 +179,6 @@ function LoginAndRegister() {
         password: formData.password
       });
       if (response.success) {
-        if (adminRequired && response.user.role !== 'admin') {
-          setError('Tài khoản của bạn không có quyền admin. Vui lòng đăng nhập với tài khoản admin.');
-          showToast({
-            title: "Không có quyền",
-            message: "Tài khoản của bạn không có quyền admin. Vui lòng đăng nhập với tài khoản admin.",
-            type: "error",
-            duration: 4000
-          });
-          return;
-        }
-
         showToast({
           title: "Thành công!",
           message: "Đăng nhập thành công!",
@@ -196,11 +187,13 @@ function LoginAndRegister() {
         });
         authLogin(response.user, response.token);
 
-        const fromPage = location.state?.from?.pathname || '/';
+        const fromPage = location.state?.from?.pathname;
         if (response.user.role === 'admin') {
-          navigate(fromPage === '/admin' ? '/admin' : '/admin');
+          const target = fromPage && fromPage.startsWith('/admin') ? fromPage : '/admin';
+          navigate(target, { replace: true });
         } else {
-          navigate(fromPage === '/admin' ? '/' : fromPage);
+          const target = fromPage && !fromPage.startsWith('/admin') && fromPage !== '/login' ? fromPage : '/';
+          navigate(target, { replace: true });
         }
       }
     } catch (error) {
@@ -240,7 +233,7 @@ function LoginAndRegister() {
           <button
             type="button"
             className={cx('auth-tab', { active: isSignUpActive })}
-            onClick={() => (authView === 'auth' ? toggleToSignUp() : navigate('/login?action=register'))}
+            onClick={() => (authView === 'auth' ? toggleToSignUp() : navigate('/register'))}
           >
             Đăng ký
           </button>
@@ -271,12 +264,6 @@ function LoginAndRegister() {
                 {error}
               </div>
             )}
-            {adminRequired && (
-              <div className={cx('admin-note')}>
-                <i className="fas fa-shield-halved"></i>
-                Cần tài khoản admin để truy cập trang Admin
-              </div>
-            )}
             <input
               type="text"
               name="name"
@@ -291,19 +278,32 @@ function LoginAndRegister() {
               value={formData.email}
               onChange={handleChange}
             />
-            <input
-              type="password"
-              name="password"
-              placeholder="Mật khẩu"
-              value={formData.password}
-              onChange={handleChange}
-            />
+            <div className={cx('password-field')}>
+              <input
+                type={showPasswords.signUp ? 'text' : 'password'}
+                name="password"
+                placeholder="Mật khẩu"
+                value={formData.password}
+                onChange={handleChange}
+              />
+              {formData.password && (
+              <button
+                type="button"
+                className={cx('password-toggle-btn')}
+                onClick={() => toggleShowPassword('signUp')}
+                title={showPasswords.signUp ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                aria-label={showPasswords.signUp ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              >
+                <i className={showPasswords.signUp ? 'fas fa-eye-slash' : 'fas fa-eye'} />
+              </button>
+              )}
+            </div>
             <button type="submit">Đăng ký</button>
           </form>
         </div>
 
         {/* Sign In Form — cũng là chỗ form Quên / Đặt lại mật khẩu hiện ra
-            (?action=forgotpassword): thay nội dung form đăng nhập ở nửa trái,
+            (/forgot-password, /reset-password): thay nội dung form đăng nhập ở nửa trái,
             khung mời đăng ký bên phải (toggle panel) giữ nguyên */}
         <div className={cx('form-container', 'sign-in', { hidden: isSignUpActive })}>
           {authView === 'forgot' && (
@@ -355,27 +355,53 @@ function LoginAndRegister() {
                   {error}
                 </div>
               )}
-              <input
-                type="password"
-                name="password"
-                placeholder="Mật khẩu mới (tối thiểu 6 ký tự)"
-                value={resetData.password}
-                onChange={handleResetChange}
-              />
-              <input
-                type="password"
-                name="confirmPassword"
-                placeholder="Xác nhận mật khẩu mới"
-                value={resetData.confirmPassword}
-                onChange={handleResetChange}
-              />
+              <div className={cx('password-field')}>
+                <input
+                  type={showPasswords.reset ? 'text' : 'password'}
+                  name="password"
+                  placeholder="Mật khẩu mới (tối thiểu 6 ký tự)"
+                  value={resetData.password}
+                  onChange={handleResetChange}
+                />
+                {resetData.password && (
+                <button
+                  type="button"
+                  className={cx('password-toggle-btn')}
+                  onClick={() => toggleShowPassword('reset')}
+                  title={showPasswords.reset ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  aria-label={showPasswords.reset ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                >
+                  <i className={showPasswords.reset ? 'fas fa-eye-slash' : 'fas fa-eye'} />
+                </button>
+                )}
+              </div>
+              <div className={cx('password-field')}>
+                <input
+                  type={showPasswords.resetConfirm ? 'text' : 'password'}
+                  name="confirmPassword"
+                  placeholder="Xác nhận mật khẩu mới"
+                  value={resetData.confirmPassword}
+                  onChange={handleResetChange}
+                />
+                {resetData.confirmPassword && (
+                <button
+                  type="button"
+                  className={cx('password-toggle-btn')}
+                  onClick={() => toggleShowPassword('resetConfirm')}
+                  title={showPasswords.resetConfirm ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                  aria-label={showPasswords.resetConfirm ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                >
+                  <i className={showPasswords.resetConfirm ? 'fas fa-eye-slash' : 'fas fa-eye'} />
+                </button>
+                )}
+              </div>
               <button type="submit">Đặt lại mật khẩu</button>
               <button
                 type="button"
                 className={cx('back-link')}
                 onClick={() => {
                   setError('');
-                  navigate('/login?action=forgotpassword');
+                  navigate('/forgot-password');
                 }}
               >
                 ← Gửi lại link đặt lại
@@ -406,12 +432,6 @@ function LoginAndRegister() {
                 {error}
               </div>
             )}
-            {adminRequired && (
-              <div className={cx('admin-note')}>
-                <i className="fas fa-shield-halved"></i>
-                Cần tài khoản admin để truy cập trang Admin
-              </div>
-            )}
             <input
               type="email"
               name="email"
@@ -419,19 +439,32 @@ function LoginAndRegister() {
               value={formData.email}
               onChange={handleChange}
             />
-            <input
-              type="password"
-              name="password"
-              placeholder="Mật khẩu"
-              value={formData.password}
-              onChange={handleChange}
-            />
+            <div className={cx('password-field')}>
+              <input
+                type={showPasswords.signIn ? 'text' : 'password'}
+                name="password"
+                placeholder="Mật khẩu"
+                value={formData.password}
+                onChange={handleChange}
+              />
+              {formData.password && (
+              <button
+                type="button"
+                className={cx('password-toggle-btn')}
+                onClick={() => toggleShowPassword('signIn')}
+                title={showPasswords.signIn ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+                aria-label={showPasswords.signIn ? 'Ẩn mật khẩu' : 'Hiện mật khẩu'}
+              >
+                <i className={showPasswords.signIn ? 'fas fa-eye-slash' : 'fas fa-eye'} />
+              </button>
+              )}
+            </div>
             <a
-              href="/login?action=forgotpassword"
+              href="/forgot-password"
               className={cx('forgot-link')}
               onClick={(e) => {
                 e.preventDefault();
-                navigate('/login?action=forgotpassword');
+                navigate('/forgot-password');
               }}
             >
               Quên mật khẩu?
@@ -461,7 +494,7 @@ function LoginAndRegister() {
               <p>Đăng ký tài khoản để theo dõi đơn hàng và mua sắm dễ dàng hơn</p>
               <button
                 className={styles.hidden}
-                onClick={() => (authView === 'auth' ? toggleToSignUp() : navigate('/login?action=register'))}
+                onClick={() => (authView === 'auth' ? toggleToSignUp() : navigate('/register'))}
               >
                 Đăng ký
               </button>

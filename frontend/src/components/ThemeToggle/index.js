@@ -4,7 +4,7 @@ import * as styles from './ThemeToggle.module.scss';
 
 const cx = classNames.bind(styles);
 
-function ThemeToggle() {
+function ThemeToggle({ compact = false, className }) {
     const toggleTheme = () => {
         const current = document.documentElement.getAttribute('data-theme') || 'dark';
         const next = current === 'dark' ? 'light' : 'dark';
@@ -18,7 +18,7 @@ function ThemeToggle() {
     return (
         <button
             type="button"
-            className={cx('theme-toggle')}
+            className={cx('theme-toggle', { compact }, className)}
             onClick={toggleTheme}
             aria-label="Chuyển giữa giao diện sáng và tối"
             title="Chuyển giữa giao diện sáng và tối"

@@ -264,6 +264,74 @@ exports.logout = async (req, res) => {
     });
 };
 
+exports.createUserByAdmin = async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Bạn không có quyền thực hiện hành động này'
+            });
+        }
+
+        const { name, email, password, role, phone, phoneNumber, address } = req.body;
+
+        if (!name || !email || !password) {
+            return res.status(400).json({
+                success: false,
+                message: 'Vui lòng điền đầy đủ họ tên, email và mật khẩu'
+            });
+        }
+
+        if (password.length < 6) {
+            return res.status(400).json({
+                success: false,
+                message: 'Mật khẩu phải có ít nhất 6 ký tự'
+            });
+        }
+
+        const userExists = await User.findOne({ email });
+        if (userExists) {
+            return res.status(400).json({
+                success: false,
+                message: 'Email này đã tồn tại trong hệ thống'
+            });
+        }
+
+        const newUserData = {
+            name,
+            email,
+            password,
+            role: role || 'user'
+        };
+
+        if (phoneNumber || phone) {
+            newUserData.phoneNumber = phoneNumber || phone;
+        }
+
+        if (address) {
+            if (Array.isArray(address)) {
+                newUserData.address = address;
+            } else if (typeof address === 'string') {
+                newUserData.address = [{ street: address, city: '', country: 'Việt Nam' }];
+            }
+        }
+
+        const user = await User.create(newUserData);
+
+        return res.status(201).json({
+            success: true,
+            user,
+            message: 'Tạo người dùng mới thành công'
+        });
+    } catch (error) {
+        console.error('Lỗi khi admin tạo user:', error);
+        return res.status(500).json({
+            success: false,
+            message: error.message || 'Đã xảy ra lỗi khi tạo người dùng'
+        });
+    }
+};
+
 exports.getAllUsers = async (req, res) => {
     try {
         if (req.user.role !== 'admin') {
@@ -329,6 +397,36 @@ exports.deleteUser = async (req, res) => {
     }
 };
 
+exports.getUserDetails = async (req, res) => {
+    try {
+        if (req.user.role !== 'admin') {
+            return res.status(403).json({
+                success: false,
+                message: 'Bạn không có quyền thực hiện hành động này'
+            });
+        }
+
+        const user = await User.findById(req.params.id).select('-password');
+        if (!user) {
+            return res.status(404).json({
+                success: false,
+                message: 'Không tìm thấy người dùng'
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            user
+        });
+    } catch (error) {
+        console.error('Lỗi khi lấy thông tin người dùng:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Đã xảy ra lỗi khi lấy thông tin người dùng'
+        });
+    }
+};
+
 exports.updateUserByAdmin = async (req, res) => {
     try {
         if (req.user.role !== 'admin') {
@@ -339,7 +437,7 @@ exports.updateUserByAdmin = async (req, res) => {
         }
 
         const userId = req.params.id;
-        const { name, email, role } = req.body;
+        const { name, email, role, phone, phoneNumber, address, password } = req.body;
 
         const user = await User.findById(userId);
         if (!user) {
@@ -354,6 +452,26 @@ exports.updateUserByAdmin = async (req, res) => {
             email: email || user.email,
             role: role || user.role
         };
+
+        if (phoneNumber !== undefined) {
+            updatedData.phoneNumber = phoneNumber;
+        } else if (phone !== undefined) {
+            updatedData.phoneNumber = phone;
+        }
+
+        if (address !== undefined) {
+            updatedData.address = address;
+        }
+
+        if (password && password.trim() !== '') {
+            if (password.length < 6) {
+                return res.status(400).json({
+                    success: false,
+                    message: 'Mật khẩu mới phải có ít nhất 6 ký tự'
+                });
+            }
+            updatedData.password = await bcrypt.hash(password, 10);
+        }
 
         const updatedUser = await User.findByIdAndUpdate(
             userId,
@@ -370,7 +488,7 @@ exports.updateUserByAdmin = async (req, res) => {
         console.error('Lỗi khi cập nhật user:', error);
         return res.status(500).json({
             success: false,
-            message: 'Đã xảy ra lỗi khi cập nhật thông tin người dùng'
+            message: error.message || 'Đã xảy ra lỗi khi cập nhật thông tin người dùng'
         });
     }
 };
@@ -391,7 +509,7 @@ exports.forgotPassword = async (req, res) => {
         const resetToken = user.getResetPasswordToken();
         await user.save({ validateBeforeSave: false });
 
-        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/login?action=forgotpassword&token=${resetToken}`;
+        const resetUrl = `${process.env.FRONTEND_URL || 'http://localhost:8080'}/reset-password?token=${resetToken}`;
 
         const transporter = await createTransporter();
         const mailOptions = {

@@ -9,6 +9,8 @@
   --color-hairline-strong: rgba(255, 255, 255, 0.16);
   --color-gold:           #D4AF37;
   --color-gold-bright:    #E6C65C;
+  --color-gold-glow:      rgba(212, 175, 55, 0.28);
+  --color-gold-subtle:    rgba(212, 175, 55, 0.12);
   --color-price:          #FF3B30;
   --color-cta:            #FFFFFF;
   --color-cta-hover:      #E8E8ED;
@@ -42,10 +44,21 @@
   --shadow-glass: 0 8px 32px rgba(0, 0, 0, 0.4);
   --shadow-panel: 0 16px 48px rgba(0, 0, 0, 0.5);
 
+  --radius-micro: 0px;
+  --radius-xs:   2px;
+  --radius-subtle: 4px;
   --radius-sm:   10px;
   --radius-md:   16px;
   --radius-lg:   22px;
   --radius-full: 999px;
+
+  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+
+  --color-editorial-border: rgba(255, 255, 255, 0.12);
+  --color-editorial-border-focus: #FFFFFF;
+  --color-editorial-muted: #8E8E93;
+  --color-editorial-surface: #111114;
+  --color-editorial-surface-subtle: #16161A;
 
   --ease-spring:    cubic-bezier(0.32, 0.72, 0, 1);
   --duration-micro: 200ms;
@@ -70,12 +83,20 @@ html[data-theme="light"] {
   --color-hairline-strong: rgba(0, 0, 0, 0.14);
   --color-gold:           #A3861D;
   --color-gold-bright:    #7D6412;
+  --color-gold-glow:      rgba(163, 134, 29, 0.24);
+  --color-gold-subtle:    rgba(163, 134, 29, 0.10);
   --color-price:          #FF3B30;
   --color-cta:            #1D1D1F;
   --color-cta-hover:      #2C2C2E;
   --color-cta-text:       #F5F5F7;
   --color-star-empty:     rgba(0, 0, 0, 0.15);
   --color-band:           #FFFFFF;
+
+  --color-editorial-border: rgba(0, 0, 0, 0.10);
+  --color-editorial-border-focus: #111111;
+  --color-editorial-muted: #6E6E73;
+  --color-editorial-surface: #FFFFFF;
+  --color-editorial-surface-subtle: #F6F6F8;
 
   --tint-fill:        rgba(0, 0, 0, 0.05);
   --tint-fill-strong: rgba(0, 0, 0, 0.08);

@@ -10,10 +10,17 @@ function ProductItem({ product }) {
     return new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
   };
 
+  const isSoldOut = Boolean(product && typeof product.stock === 'number' && product.stock <= 0);
+
   return (
-    <div className={cx('product-item')}>
+    <div className={cx('product-item', { 'is-sold-out': isSoldOut })}>
       <Link to={`/products/${product._id}`} className={cx('product-link')}>
         <div className={cx('product-image')}>
+          {isSoldOut && (
+            <div className={cx('sold-out-ribbon')} aria-label="Hết hàng">
+              <span>SOLD OUT</span>
+            </div>
+          )}
           {product.images && product.images.length > 0 ? (
             <img src={product.images[0].url} alt={product.name} />
           ) : (

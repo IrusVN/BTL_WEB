@@ -1,0 +1,75 @@
+@use '../../styles/tokens' as *;
+
+.accountNav {
+    margin-bottom: 32px;
+    border-bottom: 1px solid var(--color-editorial-border);
+    padding-bottom: 4px;
+
+    @media (max-width: 768px) {
+        margin-bottom: 24px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        -ms-overflow-style: none;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
+    }
+}
+
+.navList {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    @media (max-width: 768px) {
+        min-width: max-content;
+        gap: 6px;
+    }
+}
+
+.navTab {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: var(--radius-sm);
+    font-size: 1.3rem;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--color-editorial-muted);
+    text-decoration: none;
+    border: 1px solid transparent;
+    background: transparent;
+    transition: all var(--duration-micro) var(--ease-spring);
+    white-space: nowrap;
+
+    .tabIcon {
+        font-size: 1.25rem;
+        opacity: 0.8;
+    }
+
+    &:hover {
+        color: var(--color-text);
+        background: var(--color-editorial-surface-subtle);
+        border-color: var(--color-editorial-border);
+    }
+
+    &.active {
+        color: var(--color-gold);
+        background: var(--color-gold-subtle);
+        border-color: var(--color-gold-glow);
+        box-shadow: 0 2px 10px rgba(212, 175, 55, 0.08);
+
+        .tabIcon {
+            opacity: 1;
+            color: var(--color-gold);
+        }
+    }
+
+    @media (max-width: 576px) {
+        padding: 8px 14px;
+        font-size: 1.2rem;
+        gap: 6px;
+    }
+}

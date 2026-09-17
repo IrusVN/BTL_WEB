@@ -30,6 +30,7 @@
 }
 
 .product-image {
+  position: relative;
   width: 100%;
   aspect-ratio: 4 / 5;
   background: var(--image-well);
@@ -39,13 +40,57 @@
     width: 100%;
     height: 100%;
     object-fit: contain;
-    transition: transform 500ms var(--ease-spring);
+    transition: transform 500ms var(--ease-spring), opacity 300ms ease;
   }
 
   .product-item:hover & {
     img {
       transform: scale(1.05);
     }
+  }
+}
+
+/* Diagonal Sold Out Corner Ribbon */
+.sold-out-ribbon {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 96px;
+  height: 96px;
+  overflow: hidden;
+  z-index: 5;
+  pointer-events: none;
+
+  span {
+    position: absolute;
+    display: block;
+    width: 140px;
+    padding: 5px 0;
+    background: #E02424;
+    color: #FFFFFF;
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, monospace);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    text-align: center;
+    text-transform: uppercase;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.28);
+    transform: rotate(-45deg);
+    left: -34px;
+    top: 22px;
+    user-select: none;
+  }
+}
+
+/* Sold Out Card State */
+.is-sold-out {
+  .product-image img {
+    opacity: 0.7;
+    filter: grayscale(15%);
+  }
+
+  .product-price {
+    opacity: 0.65;
   }
 }
 

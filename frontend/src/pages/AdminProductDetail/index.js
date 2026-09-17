@@ -8,6 +8,7 @@ import { uploadProductImages } from '../../services/productService.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { showToast } from '../../components/Toast/index.js';
 import ImageLightbox from '../../components/ImageLightbox/index.js';
+import ThemeToggle from '../../components/ThemeToggle/index.js';
 import { useHead } from '../../hooks/useHead.js';
 
 const cx = classNames.bind(styles);
@@ -320,15 +321,7 @@ function AdminProductDetail() {
                     </div>
 
                     <div className={cx('actions')}>
-                        <a
-                            href={`/product/${id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className={cx('btn-secondary')}
-                            title="Mở xem trang bán hàng khách thấy"
-                        >
-                            <i className="fas fa-external-link-alt" /> Xem trên Web
-                        </a>
+                        <ThemeToggle />
 
                         <button
                             type="button"

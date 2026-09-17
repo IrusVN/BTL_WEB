@@ -13,7 +13,13 @@ const isMobileDevice = () => {
 const recentToasts = new Map();
 
 export function showToast({ title = "", message = "", type = "info", duration = 3000, position = "top-right" }) {
-    const main = document.getElementById("toast-container");
+    let main = document.getElementById("toast-container");
+    if (!main) {
+        main = document.createElement('div');
+        main.id = "toast-container";
+        main.className = cx('toast-container');
+        document.body.appendChild(main);
+    }
     const isMobile = isMobileDevice();
     
     const toastKey = `${title}-${message}-${type}`;

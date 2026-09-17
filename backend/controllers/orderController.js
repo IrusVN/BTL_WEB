@@ -93,7 +93,11 @@ exports.myOrders = async (req, res) => {
 
 exports.getAllOrders = async (req, res) => {
     try {
-        const orders = await Order.find();
+        const query = {};
+        if (req.query.userId) {
+            query.user = req.query.userId;
+        }
+        const orders = await Order.find(query).sort({ createdAt: -1 });
 
         let totalAmount = 0;
         orders.forEach(order => {

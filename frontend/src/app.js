@@ -4,7 +4,6 @@ import { publicRoutes, privateRoutes } from './routes/index.js';
 import DefaultLayout from './components/Layout/index.js';
 import { AuthProvider } from './context/AuthContext.js';
 import Header from './components/Layout/component/Header/index.js';
-import LoginAndRegister from './pages/LoginandRegister/index.js';
 import Toast from './components/Toast/index.js';
 import ProtectedRoute from './components/ProtectedRoute/index.js';
 import PageTransition from './components/PageTransition/PageTransition.js';
@@ -20,27 +19,41 @@ function App() {
                         <ChatBox />
                         <Header />
                         <Routes>
-                            <Route path="/login" element={<LoginAndRegister />} />
                             {publicRoutes.map((route, index) => {
                                 const Layout = route.layout === null ? Fragment : DefaultLayout;
                                 const Page = route.component;
-                                return <Route key={index} path={route.path} element={<Layout><Page /></Layout>} />;
+                                return (
+                                    <Route
+                                        key={`pub-${index}`}
+                                        path={route.path}
+                                        element={
+                                            <ProtectedRoute
+                                                access={route.access || 'storefront'}
+                                                authRequired={route.authRequired || false}
+                                            >
+                                                <Layout><Page /></Layout>
+                                            </ProtectedRoute>
+                                        }
+                                    />
+                                );
                             })}
-                            
+
                             {privateRoutes.map((route, index) => {
                                 const Layout = route.layout === null ? Fragment : DefaultLayout;
                                 const Page = route.component;
-                                const isAdminRoute = route.path === '/admin' || route.path.startsWith('/admin/');
 
                                 return (
-                                    <Route 
-                                        key={index} 
-                                        path={route.path} 
+                                    <Route
+                                        key={`priv-${index}`}
+                                        path={route.path}
                                         element={
-                                            <ProtectedRoute adminOnly={isAdminRoute}>
+                                            <ProtectedRoute
+                                                access={route.access || 'storefront'}
+                                                authRequired={route.authRequired !== undefined ? route.authRequired : true}
+                                            >
                                                 <Layout><Page /></Layout>
                                             </ProtectedRoute>
-                                        } 
+                                        }
                                     />
                                 );
                             })}

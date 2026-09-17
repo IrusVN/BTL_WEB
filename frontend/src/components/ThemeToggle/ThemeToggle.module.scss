@@ -31,6 +31,74 @@
         outline-offset: 2px;
     }
 
+    &.compact {
+        width: 38px;
+        height: 38px;
+        min-width: 38px;
+        padding: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 11px;
+        background: var(--tint-fill);
+        border: 1px solid var(--color-hairline);
+        box-shadow: none;
+        backdrop-filter: none;
+        -webkit-backdrop-filter: none;
+        overflow: hidden;
+
+        .knob {
+            display: none !important;
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+        }
+
+        .icon-sun,
+        .icon-moon {
+            position: static;
+            transform: none;
+            font-size: 1.35rem;
+            line-height: 1;
+            margin: 0;
+            color: var(--color-text-secondary);
+            transition: color var(--duration-micro) ease;
+        }
+
+        .icon-sun {
+            display: none;
+        }
+
+        .icon-moon {
+            display: inline-block;
+        }
+
+        &:hover {
+            background: var(--tint-fill-strong);
+            border-color: var(--color-hairline-strong);
+            transform: scale(1.06);
+
+            .icon-sun,
+            .icon-moon {
+                color: var(--color-gold);
+            }
+        }
+
+        &:active {
+            transform: scale(0.94);
+        }
+
+        :global(html[data-theme='light']) & {
+            .icon-sun {
+                display: inline-block;
+            }
+
+            .icon-moon {
+                display: none;
+            }
+        }
+    }
+
     :global(html[data-theme='light']) & {
         .knob {
             --knob-x: -28px;

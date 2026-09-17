@@ -308,6 +308,54 @@
     box-shadow: 0 0 0 3px rgba(163, 134, 29, 0.22);
 }
 
+.password-field {
+    position: relative;
+    width: 100%;
+    margin-bottom: 1.2rem;
+
+    input {
+        margin-bottom: 0;
+        padding-right: 4.4rem;
+
+        &::-ms-reveal,
+        &::-ms-clear {
+            display: none;
+        }
+    }
+}
+
+.password-toggle-btn {
+    position: absolute;
+    right: 0.8rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 3.2rem;
+    height: 3.2rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    color: var(--color-text-secondary);
+    font-size: 1.4rem;
+    cursor: pointer;
+    padding: 0;
+    z-index: 2;
+    transition: color var(--duration-micro) ease,
+        background-color var(--duration-micro) ease;
+
+    &:hover {
+        color: var(--color-gold);
+        background: var(--tint-fill);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--color-gold);
+        outline-offset: 1px;
+    }
+}
+
 .container form button[type='submit'] {
     width: 100%;
     margin-top: 0.8rem;
@@ -372,8 +420,7 @@
     }
 }
 
-.error-banner,
-.admin-note {
+.error-banner {
     width: 100%;
     display: flex;
     align-items: flex-start;
@@ -395,12 +442,6 @@
     background: rgba(255, 59, 48, 0.10);
     border: 1px solid rgba(255, 59, 48, 0.35);
     color: var(--color-price);
-}
-
-.admin-note {
-    background: rgba(255, 192, 33, 0.10);
-    border: 1px solid rgba(255, 192, 33, 0.35);
-    color: #ffc021;
 }
 
 .sent-note {
@@ -708,5 +749,16 @@
 
     .container input {
         font-size: 1.6rem;
+    }
+
+    .password-field input {
+        padding-right: 4.6rem;
+    }
+
+    .password-toggle-btn {
+        width: 3.6rem;
+        height: 3.6rem;
+        font-size: 1.6rem;
+        right: 0.6rem;
     }
 }

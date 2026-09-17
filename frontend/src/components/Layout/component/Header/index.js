@@ -1,7 +1,7 @@
 import classNames from 'classnames/bind';
 import * as styles from './Header.module.scss';
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import logo_rmbg from '../../../../img/logo-rmbg.png';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import { useAuth } from '../../../../context/AuthContext.js';
@@ -20,6 +20,7 @@ const formatSuggestionPrice = (price) =>
 function Header() {
     const { user, logout } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const [showSearch, setShowSearch] = useState(false);
     const [searchTerm, setSearchTerm] = useState('');
@@ -240,7 +241,12 @@ function Header() {
             window.removeEventListener('scroll', handleScroll);
         };
     }, []);
-    
+
+    // Không hiển thị Header storefront trên các trang Quản trị (/admin, /admin/*)
+    if (location && location.pathname.startsWith('/admin')) {
+        return null;
+    }
+
     return (
         <header className={cx('header', { 'sticky': isHeaderSticky })}>
             <div className={cx('wrapper', { 'sticky': isHeaderSticky })}>
@@ -372,7 +378,7 @@ function Header() {
                                             <i className="fas fa-sign-in-alt" style={{ marginRight: '5px' }}></i>
                                             <span className={cx('btn-text')}>Đăng nhập</span>
                                         </Link>
-                                        <Link to="/login?action=register" className={cx('btn-dtl', 'btn-outline')}>
+                                        <Link to="/register" className={cx('btn-dtl', 'btn-outline')}>
                                             <i className="fas fa-user-plus" style={{ marginRight: '5px' }}></i>
                                             <span>Đăng ký</span>
                                         </Link>
@@ -556,7 +562,7 @@ function Header() {
                                     </Link>
                                 </li>
                                 <li>
-                                    <Link to="/login?action=register" className={cx('mobile-menu-link')} onClick={handleMobileRegister}>
+                                    <Link to="/register" className={cx('mobile-menu-link')} onClick={handleMobileRegister}>
                                         <i className="fas fa-user-plus"></i> Đăng ký
                                     </Link>
                                 </li>

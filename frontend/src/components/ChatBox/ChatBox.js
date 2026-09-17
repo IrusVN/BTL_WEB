@@ -31,6 +31,8 @@ const ChatBox = () => {
     }, [currentUser, token]);
 
     const shouldShowChatbox = () => {
+        // Không hiển thị widget chat hỗ trợ khách hàng cho tài khoản Admin
+        if (currentUser && currentUser.role === 'admin') return false;
         if (!location || !location.pathname) return true;
 
         const path = location.pathname;
