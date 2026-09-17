@@ -6,6 +6,7 @@ import LoginAndRegister from '../pages/LoginandRegister/index.js';
 import Info from '../pages/Info/index.js';
 import Checkout from '../pages/Checkout/index.js';
 import Admin from '../pages/Admin/index.js';
+import AdminProductDetail from '../pages/AdminProductDetail/index.js';
 import OrderConfirmation from '../pages/OrderConfirmation/index.js';
 import MyOrders from '../pages/MyOrders/index.js';
 import OrderDetail from '../pages/OrderDetail/index.js';
@@ -26,6 +27,8 @@ const privateRoutes = [
     { path: '/cart', component: Cart},
     { path: '/checkout', component: Checkout },
     { path: '/admin', component: Admin, layout: null},
+    { path: '/admin/product/:id', component: AdminProductDetail, layout: null },
+    { path: '/admin/products/:id', component: AdminProductDetail, layout: null },
     { path: '/order-confirmation', component: OrderConfirmation },
     { path: '/my-orders', component: MyOrders },
     { path: '/order/:id', component: OrderDetail },

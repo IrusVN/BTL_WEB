@@ -58,4 +58,38 @@ export const uploadProductImages = async (files, token) => {
     } catch (error) {
         throw error.response ? error.response.data : new Error('Lỗi khi tải ảnh lên Cloudflare R2');
     }
+};
+
+export const updateProduct = async (id, productData, token) => {
+    try {
+        const headers = {
+            'Content-Type': 'application/json'
+        };
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        const response = await axios.put(`${API_URL}/products/product/${id}`, productData, {
+            headers,
+            withCredentials: true
+        });
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Lỗi khi cập nhật sản phẩm');
+    }
+};
+
+export const deleteProduct = async (id, token) => {
+    try {
+        const headers = {};
+        if (token) {
+            headers['Authorization'] = `Bearer ${token}`;
+        }
+        const response = await axios.delete(`${API_URL}/products/product/${id}`, {
+            headers,
+            withCredentials: true
+        });
+        return response.data;
+    } catch (error) {
+        throw error.response ? error.response.data : new Error('Lỗi khi xóa sản phẩm');
+    }
 }; 

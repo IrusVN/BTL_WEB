@@ -30,8 +30,8 @@ function App() {
                             {privateRoutes.map((route, index) => {
                                 const Layout = route.layout === null ? Fragment : DefaultLayout;
                                 const Page = route.component;
-                                const isAdminRoute = route.path === '/admin';
-                                
+                                const isAdminRoute = route.path === '/admin' || route.path.startsWith('/admin/');
+
                                 return (
                                     <Route 
                                         key={index} 

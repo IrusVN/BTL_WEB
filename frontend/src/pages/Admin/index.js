@@ -6,7 +6,9 @@ import { API_URL } from '../../services/authService.js';
 import { uploadProductImages } from '../../services/productService.js';
 import { useAuth } from '../../context/AuthContext.js';
 import { showToast } from '../../components/Toast/index.js';
-import { useNavigate } from 'react-router-dom';
+import QuickView from '../../components/QuickView/index.js';
+import ImageLightbox from '../../components/ImageLightbox/index.js';
+import { useNavigate, useLocation } from 'react-router-dom';
 import '@fortawesome/fontawesome-free/css/all.min.css';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTachometerAlt, faFileInvoice, faUsers, faSignOutAlt, faSearch, faPlus, faEye, faPencilAlt, faTrash, faTimes, faBars, faComments, faPaperPlane } from '@fortawesome/free-solid-svg-icons';
@@ -28,7 +30,29 @@ function Admin() {
     useHead('Quản trị');
     const { token, user } = useAuth();
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('dashboard');
+    const location = useLocation();
+
+    const queryTab = new URLSearchParams(location.search).get('tab');
+    const initialTab = location.state?.activeTab || queryTab || 'dashboard';
+    const [activeTab, setActiveTab] = useState(initialTab);
+
+    // Trạng thái loading cho các bảng dữ liệu
+    const [loadingDashboard, setLoadingDashboard] = useState(initialTab === 'dashboard');
+    const [loadingInvoices, setLoadingInvoices] = useState(initialTab === 'invoices');
+    const [loadingProducts, setLoadingProducts] = useState(initialTab === 'products');
+    const [loadingUsers, setLoadingUsers] = useState(initialTab === 'users');
+
+    useEffect(() => {
+        const tabParam = new URLSearchParams(location.search).get('tab');
+        const targetTab = location.state?.activeTab || tabParam;
+        if (targetTab) {
+            if (targetTab === 'invoices') setLoadingInvoices(true);
+            else if (targetTab === 'products') setLoadingProducts(true);
+            else if (targetTab === 'users') setLoadingUsers(true);
+            else if (targetTab === 'dashboard') setLoadingDashboard(true);
+            setActiveTab(targetTab);
+        }
+    }, [location.search, location.state]);
     const [invoices, setInvoices] = useState([]);
     const [products, setProducts] = useState([]);
     const [filteredProducts, setFilteredProducts] = useState([]);
@@ -87,6 +111,37 @@ function Admin() {
     const [editingProduct, setEditingProduct] = useState(null);
     const [productImages, setProductImages] = useState([]);
     const [isUploadingImages, setIsUploadingImages] = useState(false);
+
+    // Trạng thái phóng to ảnh Lightbox
+    const [lightboxOpen, setLightboxOpen] = useState(false);
+    const [lightboxImages, setLightboxImages] = useState([]);
+    const [lightboxIndex, setLightboxIndex] = useState(0);
+    const [lightboxTitle, setLightboxTitle] = useState('');
+    const [lightboxSubtitle, setLightboxSubtitle] = useState('');
+
+    const handleOpenLightbox = (product, initialIdx = 0) => {
+        if (!product) return;
+        let imgs = [];
+        if (Array.isArray(product.images) && product.images.length > 0) {
+            imgs = product.images;
+        } else if (product.image) {
+            imgs = [product.image];
+        } else if (product.imageUrl) {
+            imgs = [product.imageUrl];
+        }
+
+        if (imgs.length === 0) return;
+
+        setLightboxImages(imgs);
+        setLightboxIndex(initialIdx);
+        setLightboxTitle(product.name || 'Chi tiết hình ảnh');
+        setLightboxSubtitle(
+            product.brand
+                ? `${product.brand}${product.code ? ' • ' + product.code : ''}`
+                : product.code || ''
+        );
+        setLightboxOpen(true);
+    };
     
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -104,6 +159,10 @@ function Admin() {
     };
 
     const handleMenuItemClick = (tab) => {
+        if (tab === 'invoices') setLoadingInvoices(true);
+        else if (tab === 'products') setLoadingProducts(true);
+        else if (tab === 'users') setLoadingUsers(true);
+        else if (tab === 'dashboard') setLoadingDashboard(true);
         setActiveTab(tab);
         if (window.innerWidth <= 768) {
             setIsSidebarOpen(false);
@@ -125,13 +184,14 @@ function Admin() {
 
     const fetchDashboardData = async () => {
         try {
+            setLoadingDashboard(true);
             const ordersResponse = await axios.get(`${API_URL}/orders/admin/orders`, {
                 withCredentials: true,
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            
+
             if (ordersResponse.data.success) {
                 setDashboardStats(prev => ({
                     ...prev,
@@ -148,7 +208,7 @@ function Admin() {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            
+
             if (productsResponse.data.success) {
                 setDashboardStats(prev => ({
                     ...prev,
@@ -164,7 +224,7 @@ function Admin() {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            
+
             if (usersResponse.data.success) {
                 setDashboardStats(prev => ({
                     ...prev,
@@ -173,19 +233,19 @@ function Admin() {
                 console.log('Users data:', usersResponse.data);
                 setUsers(usersResponse.data.users);
             }
-            
+
             const conversationsResponse = await axios.get(`${API_URL}/chat/conversations`, {
                 withCredentials: true,
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            
+
             if (conversationsResponse.data.success) {
                 const unreadCount = conversationsResponse.data.conversations.reduce(
                     (acc, conv) => acc + (conv.unreadCount || 0), 0
                 );
-                
+
                 setDashboardStats(prev => ({
                     ...prev,
                     totalChats: conversationsResponse.data.conversations.length,
@@ -203,6 +263,8 @@ function Admin() {
                 type: "error",
                 duration: 3000
             });
+        } finally {
+            setLoadingDashboard(false);
         }
     };
 
@@ -475,15 +537,16 @@ function Admin() {
 
     const fetchInvoices = async () => {
         try {
+            setLoadingInvoices(true);
             const response = await axios.get(`${API_URL}/orders/admin/orders`, {
                 withCredentials: true,
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            
-                    if (response.data.success) {
-                        setInvoices(response.data.orders);
+
+            if (response.data.success) {
+                setInvoices(response.data.orders);
                 setFilteredInvoices(response.data.orders);
             } else {
                 showToast({
@@ -494,24 +557,27 @@ function Admin() {
                 });
             }
         } catch (error) {
-                    console.error('Lỗi khi lấy hóa đơn:', error);
+            console.error('Lỗi khi lấy hóa đơn:', error);
             showToast({
                 title: "Lỗi",
                 message: "Không thể tải danh sách hóa đơn",
                 type: "error",
                 duration: 3000
-                });
+            });
+        } finally {
+            setLoadingInvoices(false);
         }
     };
 
     const fetchProducts = async () => {
         try {
+            setLoadingProducts(true);
             const response = await axios.get(`${API_URL}/products/products`, {
                 withCredentials: true
             });
-            
-                    if (response.data.success) {
-                        setProducts(response.data.products);
+
+            if (response.data.success) {
+                setProducts(response.data.products);
                 setFilteredProducts(response.data.products);
             } else {
                 showToast({
@@ -522,26 +588,29 @@ function Admin() {
                 });
             }
         } catch (error) {
-                    console.error('Lỗi khi lấy sản phẩm:', error);
+            console.error('Lỗi khi lấy sản phẩm:', error);
             showToast({
                 title: "Lỗi",
                 message: "Không thể tải danh sách sản phẩm",
                 type: "error",
                 duration: 3000
             });
-                    }
+        } finally {
+            setLoadingProducts(false);
+        }
     };
-    
+
     const fetchUsers = async () => {
         try {
+            setLoadingUsers(true);
             const response = await axios.get(`${API_URL}/users`, {
                 withCredentials: true,
                 headers: {
                     'Authorization': `Bearer ${token}`
                 }
             });
-            
-                    if (response.data.success) {
+
+            if (response.data.success) {
                 setUsers(response.data.users);
                 setFilteredUsers(response.data.users);
             } else {
@@ -551,7 +620,7 @@ function Admin() {
                     type: "error",
                     duration: 3000
                 });
-                    }
+            }
         } catch (error) {
             console.error('Lỗi khi lấy người dùng:', error);
             showToast({
@@ -560,6 +629,8 @@ function Admin() {
                 type: "error",
                 duration: 3000
             });
+        } finally {
+            setLoadingUsers(false);
         }
     };
 
@@ -1339,6 +1410,24 @@ function Admin() {
         }
     };
 
+    const TableLoadingRow = ({ colSpan = 7, message = "Đang tải dữ liệu..." }) => (
+        <tr>
+            <td colSpan={colSpan} className={cx('table-loading-cell')}>
+                <div className={cx('table-loading-content')}>
+                    <div className={cx('table-loading-spinner')}></div>
+                    <span className={cx('table-loading-text')}>{message}</span>
+                </div>
+            </td>
+        </tr>
+    );
+
+    const MobileLoadingBox = ({ message = "Đang tải dữ liệu..." }) => (
+        <div className={cx('mobile-loading-container')}>
+            <div className={cx('table-loading-spinner')}></div>
+            <span className={cx('table-loading-text')}>{message}</span>
+        </div>
+    );
+
     const StatBox = ({ icon, number, label, color }) => {
         const colorClasses = {
             blue: cx('stat-icon-blue'),
@@ -1413,7 +1502,9 @@ function Admin() {
                                         </tr>
                                     </thead>
                                     <tbody>
-                                        {dashboardStats.recentOrders.length > 0 ? (
+                                        {loadingDashboard ? (
+                                            <TableLoadingRow colSpan={7} message="Đang tải đơn hàng gần đây..." />
+                                        ) : dashboardStats.recentOrders.length > 0 ? (
                                             dashboardStats.recentOrders.map((order) => (
                                                 <tr key={order._id}>
                                                     <td>#{order._id.slice(-6)}</td>
@@ -1436,7 +1527,7 @@ function Admin() {
                                                     </td>
                                                     <td>
                                                         <div className={cx('action-buttons')}>
-                                                            <button 
+                                                            <button
                                                                 className={cx('view-btn')}
                                                                 onClick={() => handleViewInvoice(order)}
                                                                 title="Xem chi tiết"
@@ -1444,7 +1535,7 @@ function Admin() {
                                                                 <i className="fas fa-eye"></i>
                                                             </button>
                                                             {order.orderStatus !== 'Delivered' && order.orderStatus !== 'Cancelled' && (
-                                                                <button 
+                                                                <button
                                                                     className={cx('cancel-btn')}
                                                                     onClick={() => handleCancelOrder(order._id)}
                                                                     title="Hủy đơn hàng"
@@ -1452,7 +1543,7 @@ function Admin() {
                                                                     <i className="fas fa-times"></i>
                                                                 </button>
                                                             )}
-                                                            <button 
+                                                            <button
                                                                 className={cx('delete-btn')}
                                                                 onClick={() => handleRemoveOrder(order._id)}
                                                                 title="Xóa đơn hàng"
@@ -1474,7 +1565,9 @@ function Admin() {
 
                             {/* Hiển thị danh sách dạng card trên mobile */}
                             <div className={cx('recent-orders-mobile', 'd-block-mobile')}>
-                                {dashboardStats.recentOrders.length > 0 ? (
+                                {loadingDashboard ? (
+                                    <MobileLoadingBox message="Đang tải đơn hàng gần đây..." />
+                                ) : dashboardStats.recentOrders.length > 0 ? (
                                     dashboardStats.recentOrders.map((order) => (
                                         <div key={order._id} className={cx('mobile-order-item')}>
                                             <div className={cx('mobile-order-header')}>
@@ -1509,21 +1602,21 @@ function Admin() {
                                                 </span>
                                             </div>
                                             <div className={cx('mobile-order-actions')}>
-                                                <button 
+                                                <button
                                                     className={cx('view-btn')}
                                                     onClick={() => handleViewInvoice(order)}
                                                 >
                                                     <i className="fas fa-eye"></i> Xem
                                                 </button>
                                                 {order.orderStatus !== 'Delivered' && order.orderStatus !== 'Cancelled' && (
-                                                    <button 
+                                                    <button
                                                         className={cx('cancel-btn')}
                                                         onClick={() => handleCancelOrder(order._id)}
                                                     >
                                                         <i className="fas fa-times"></i> Hủy
                                                     </button>
                                                 )}
-                                                <button 
+                                                <button
                                                     className={cx('delete-btn')}
                                                     onClick={() => handleRemoveOrder(order._id)}
                                                 >
@@ -1537,111 +1630,6 @@ function Admin() {
                                 )}
                             </div>
                         </div>
-
-                        {/* Modal chi tiết hóa đơn */}
-                        {showInvoiceModal && selectedInvoice && (
-                            <div className={cx('invoice-details-modal')}>
-                                <div className={cx('modal-content')}>
-                                    <div className={cx('modal-header')}>
-                                        <h3>Chi tiết đơn hàng #{selectedInvoice._id.slice(-6)}</h3>
-                                        <button 
-                                            className={cx('close-btn')}
-                                            onClick={() => setShowInvoiceModal(false)}
-                                        >
-                                            <i className="fas fa-times"></i>
-                                        </button>
-                                    </div>
-                                    
-                                    <div className={cx('modal-body')}>
-                                        <div className={cx('customer-info')}>
-                                            <h4>Thông tin khách hàng</h4>
-                                            <p><strong>Họ tên:</strong> {selectedInvoice.shippingInfo?.fullName}</p>
-                                            <p><strong>Email:</strong> {selectedInvoice.user?.email}</p>
-                                            <p><strong>Điện thoại:</strong> {selectedInvoice.shippingInfo?.phoneNo}</p>
-                                            <p><strong>Địa chỉ:</strong> {selectedInvoice.shippingInfo?.address}, {selectedInvoice.shippingInfo?.city}</p>
-                                            <p><strong>Phương thức thanh toán:</strong> {selectedInvoice.paymentMethod === "Banking" ? "Chuyển khoản ngân hàng" : "Thanh toán khi nhận hàng (COD)"}</p>
-                                        </div>
-                                        
-                                        <div className={cx('order-details')}>
-                                            <h4>Chi tiết sản phẩm</h4>
-                                            <table className={cx('order-items-table')}>
-                                                <thead>
-                                                    <tr>
-                                                        <th>Sản phẩm</th>
-                                                        <th>Giá</th>
-                                                        <th>Số lượng</th>
-                                                        <th>Thành tiền</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {selectedInvoice.orderItems.map((item, index) => (
-                                                        <tr key={index}>
-                                                            <td>
-                                                                <div className={cx('product-info')}>
-                                                                    <img 
-                                                                        src={item.images?.[0]?.url || item.image || 'https://via.placeholder.com/50'} 
-                                                                        alt={item.name} 
-                                                                    />
-                                                                    <span>{item.name}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td>{formatCurrency(item.price)}</td>
-                                                            <td>{item.quantity}</td>
-                                                            <td>{formatCurrency(item.price * item.quantity)}</td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                            
-                                            <div className={cx('order-summary')}>
-                                                <div className={cx('summary-row')}>
-                                                    <span>Tổng tiền hàng:</span>
-                                                    <span>{formatCurrency(selectedInvoice.itemsPrice)}</span>
-                                                </div>
-                                                <div className={cx('summary-row')}>
-                                                    <span>Phí giao hàng:</span>
-                                                    <span>{formatCurrency(selectedInvoice.shippingPrice)}</span>
-                                                </div>
-                                                <div className={cx('summary-row')}>
-                                                    <span>Thuế:</span>
-                                                    <span>{formatCurrency(selectedInvoice.taxPrice)}</span>
-                                                </div>
-                                                <div className={`${cx('summary-row')} ${cx('total')}`}>
-                                                    <span>Tổng thanh toán:</span>
-                                                    <span>{formatCurrency(selectedInvoice.totalPrice)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className={cx('modal-footer')}>
-                                        {selectedInvoice && selectedInvoice.orderStatus !== 'Delivered' && selectedInvoice.orderStatus !== 'Cancelled' && (
-                                            <button 
-                                                className={cx('cancel-order-btn')}
-                                                onClick={() => handleCancelOrder(selectedInvoice._id)}
-                                            >
-                                                Hủy đơn hàng
-                                            </button>
-                                        )}
-                                        <button 
-                                            className={cx('delete-order-btn')}
-                                            onClick={() => {
-                                                handleRemoveOrder(selectedInvoice._id);
-                                                setShowInvoiceModal(false);
-                                            }}
-                                        >
-                                            Xóa đơn hàng
-                                        </button>
-                                        <button 
-                                            className={cx('close-modal-btn')}
-                                            onClick={() => setShowInvoiceModal(false)}
-                                        >
-                                            Đóng
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 );
             case 'invoices':
@@ -1690,62 +1678,72 @@ function Admin() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredInvoices.map((invoice) => (
-                                        <tr key={invoice._id}>
-                                            <td>#{invoice._id.slice(-6)}</td>
-                                            <td>{invoice.shippingInfo?.fullName || 'Không có tên'}</td>
-                                            <td>{formatDate(invoice.createdAt)}</td>
-                                            <td>{formatCurrency(invoice.totalPrice)}</td>
-                                            <td>{invoice.paymentMethod === "Banking" ? "Chuyển khoản" : "Tiền mặt (COD)"}</td>
-                                            <td>
-                                                <span
-                                                    className={cx('status', {
-                                                        'pending': invoice.orderStatus === 'Pending',
-                                                        'processing': invoice.orderStatus === 'Processing',
-                                                        'shipped': invoice.orderStatus === 'Shipped',
-                                                        'delivered': invoice.orderStatus === 'Delivered',
-                                                        'cancelled': invoice.orderStatus === 'Cancelled'
-                                                    })}
-                                                >
-                                                    {getStatusVietnamese(invoice.orderStatus)}
-                                                </span>
-                                            </td>
-                                            <td>
-                                                <div className={cx('action-buttons')}>
-                                                    <button 
-                                                        className={cx('view-btn')}
-                                                        onClick={() => handleViewInvoice(invoice)}
-                                                        title="Xem chi tiết"
+                                    {loadingInvoices ? (
+                                        <TableLoadingRow colSpan={7} message="Đang tải danh sách đơn hàng..." />
+                                    ) : filteredInvoices.length > 0 ? (
+                                        filteredInvoices.map((invoice) => (
+                                            <tr key={invoice._id}>
+                                                <td>#{invoice._id.slice(-6)}</td>
+                                                <td>{invoice.shippingInfo?.fullName || 'Không có tên'}</td>
+                                                <td>{formatDate(invoice.createdAt)}</td>
+                                                <td>{formatCurrency(invoice.totalPrice)}</td>
+                                                <td>{invoice.paymentMethod === "Banking" ? "Chuyển khoản" : "Tiền mặt (COD)"}</td>
+                                                <td>
+                                                    <span
+                                                        className={cx('status', {
+                                                            'pending': invoice.orderStatus === 'Pending',
+                                                            'processing': invoice.orderStatus === 'Processing',
+                                                            'shipped': invoice.orderStatus === 'Shipped',
+                                                            'delivered': invoice.orderStatus === 'Delivered',
+                                                            'cancelled': invoice.orderStatus === 'Cancelled'
+                                                        })}
                                                     >
-                                                        <i className="fas fa-eye"></i>
-                                                    </button>
-                                                    {invoice.orderStatus !== 'Delivered' && invoice.orderStatus !== 'Cancelled' && (
-                                                        <button 
-                                                            className={cx('cancel-btn')}
-                                                            onClick={() => handleCancelOrder(invoice._id)}
-                                                            title="Hủy đơn hàng"
+                                                        {getStatusVietnamese(invoice.orderStatus)}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <div className={cx('action-buttons')}>
+                                                        <button
+                                                            className={cx('view-btn')}
+                                                            onClick={() => handleViewInvoice(invoice)}
+                                                            title="Xem chi tiết"
                                                         >
-                                                            <i className="fas fa-times"></i>
+                                                            <i className="fas fa-eye"></i>
                                                         </button>
-                                                    )}
-                                                    <button 
-                                                        className={cx('delete-btn')}
-                                                        onClick={() => handleRemoveOrder(invoice._id)}
-                                                        title="Xóa đơn hàng"
-                                                    >
-                                                        <i className="fas fa-trash"></i>
-                                                    </button>
-                                                </div>
-                                            </td>
+                                                        {invoice.orderStatus !== 'Delivered' && invoice.orderStatus !== 'Cancelled' && (
+                                                            <button
+                                                                className={cx('cancel-btn')}
+                                                                onClick={() => handleCancelOrder(invoice._id)}
+                                                                title="Hủy đơn hàng"
+                                                            >
+                                                                <i className="fas fa-times"></i>
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            className={cx('delete-btn')}
+                                                            onClick={() => handleRemoveOrder(invoice._id)}
+                                                            title="Xóa đơn hàng"
+                                                        >
+                                                            <i className="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={7} className={cx('no-data')}>Không tìm thấy đơn hàng nào</td>
                                         </tr>
-                                    ))}
+                                    )}
                                 </tbody>
                             </table>
                         </div>
-                        
+
                         {/* Hiển thị giao diện mobile */}
                         <div className={cx('invoice-mobile-list', 'd-block-mobile')}>
-                            {filteredInvoices.length > 0 ? (
+                            {loadingInvoices ? (
+                                <MobileLoadingBox message="Đang tải danh sách đơn hàng..." />
+                            ) : filteredInvoices.length > 0 ? (
                                 filteredInvoices.map((invoice) => (
                                     <div key={invoice._id} className={cx('invoice-mobile-item')}>
                                         <div className={cx('invoice-mobile-header')}>
@@ -1807,111 +1805,6 @@ function Admin() {
                                 <div className={cx('no-data')}>Không tìm thấy đơn hàng nào</div>
                             )}
                         </div>
-                        
-                        {/* Modal chi tiết hóa đơn */}
-                        {showInvoiceModal && selectedInvoice && (
-                            <div className={cx('invoice-details-modal')}>
-                                <div className={cx('modal-content')}>
-                                    <div className={cx('modal-header')}>
-                                        <h3>Chi tiết đơn hàng #{selectedInvoice._id.slice(-6)}</h3>
-                                        <button 
-                                            className={cx('close-btn')}
-                                            onClick={() => setShowInvoiceModal(false)}
-                                        >
-                                            <i className="fas fa-times"></i>
-                                        </button>
-                                    </div>
-                                    
-                                    <div className={cx('modal-body')}>
-                                        <div className={cx('customer-info')}>
-                                            <h4>Thông tin khách hàng</h4>
-                                            <p><strong>Họ tên:</strong> {selectedInvoice.shippingInfo?.fullName}</p>
-                                            <p><strong>Email:</strong> {selectedInvoice.user?.email}</p>
-                                            <p><strong>Điện thoại:</strong> {selectedInvoice.shippingInfo?.phoneNo}</p>
-                                            <p><strong>Địa chỉ:</strong> {selectedInvoice.shippingInfo?.address}, {selectedInvoice.shippingInfo?.city}</p>
-                                            <p><strong>Phương thức thanh toán:</strong> {selectedInvoice.paymentMethod === "Banking" ? "Chuyển khoản ngân hàng" : "Thanh toán khi nhận hàng (COD)"}</p>
-                                        </div>
-                                        
-                                        <div className={cx('order-details')}>
-                                            <h4>Chi tiết sản phẩm</h4>
-                                            <table className={cx('order-items-table')}>
-                                                <thead>
-                                                    <tr>
-                                                        <th>Sản phẩm</th>
-                                                        <th>Giá</th>
-                                                        <th>Số lượng</th>
-                                                        <th>Thành tiền</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody>
-                                                    {selectedInvoice.orderItems.map((item, index) => (
-                                                        <tr key={index}>
-                                                            <td>
-                                                                <div className={cx('product-info')}>
-                                                                    <img 
-                                                                        src={item.images?.[0]?.url || item.image || 'https://via.placeholder.com/50'} 
-                                                                        alt={item.name} 
-                                                                    />
-                                                                    <span>{item.name}</span>
-                                                                </div>
-                                                            </td>
-                                                            <td>{formatCurrency(item.price)}</td>
-                                                            <td>{item.quantity}</td>
-                                                            <td>{formatCurrency(item.price * item.quantity)}</td>
-                                                        </tr>
-                                                    ))}
-                                                </tbody>
-                                            </table>
-                                            
-                                            <div className={cx('order-summary')}>
-                                                <div className={cx('summary-row')}>
-                                                    <span>Tổng tiền hàng:</span>
-                                                    <span>{formatCurrency(selectedInvoice.itemsPrice)}</span>
-                                                </div>
-                                                <div className={cx('summary-row')}>
-                                                    <span>Phí giao hàng:</span>
-                                                    <span>{formatCurrency(selectedInvoice.shippingPrice)}</span>
-                                                </div>
-                                                <div className={cx('summary-row')}>
-                                                    <span>Thuế:</span>
-                                                    <span>{formatCurrency(selectedInvoice.taxPrice)}</span>
-                                                </div>
-                                                <div className={`${cx('summary-row')} ${cx('total')}`}>
-                                                    <span>Tổng thanh toán:</span>
-                                                    <span>{formatCurrency(selectedInvoice.totalPrice)}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    
-                                    <div className={cx('modal-footer')}>
-                                        {selectedInvoice && selectedInvoice.orderStatus !== 'Delivered' && selectedInvoice.orderStatus !== 'Cancelled' && (
-                                            <button 
-                                                className={cx('cancel-order-btn')}
-                                                onClick={() => handleCancelOrder(selectedInvoice._id)}
-                                            >
-                                                Hủy đơn hàng
-                                            </button>
-                                        )}
-                                        <button 
-                                            className={cx('delete-order-btn')}
-                                            onClick={() => {
-                                                handleRemoveOrder(selectedInvoice._id);
-                                                setShowInvoiceModal(false);
-                                            }}
-                                        >
-                                            Xóa đơn hàng
-                                        </button>
-                                        <button 
-                                            className={cx('close-modal-btn')}
-                                            onClick={() => setShowInvoiceModal(false)}
-                                        >
-                                            Đóng
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
                     </div>
                 );
             case 'users':
@@ -1953,47 +1846,57 @@ function Admin() {
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    {filteredUsers.map((user) => (
-                                        <tr key={user._id}>
-                                            <td>{user.name}</td>
-                                            <td>{user.email}</td>
-                                            <td>{user.phone || 'Chưa cập nhật'}</td>
-                                            <td>
-                                                <span className={cx('role', {
-                                                    'admin': user.role === 'admin',
-                                                    'user': user.role === 'user'
-                                                })}>
-                                                    {user.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}
-                                                </span>
-                                            </td>
-                                            <td>{formatDate(user.createdAt)}</td>
-                                            <td>
-                                                <div className={cx('action-buttons')}>
-                                                    <button 
-                                                        className={cx('edit-btn')}
-                                                        onClick={() => handleEditUser(user)}
-                                                        title="Chỉnh sửa"
-                                                    >
-                                                        <i className="fas fa-pencil-alt"></i>
-                                                    </button>
-                                                    <button 
-                                                        className={cx('delete-btn')}
-                                                        onClick={() => handleDeleteUser(user._id)}
-                                                        title="Xóa"
-                                                    >
-                                                        <i className="fas fa-trash"></i>
-                                                    </button>
-                                                </div>
-                                            </td>
+                                    {loadingUsers ? (
+                                        <TableLoadingRow colSpan={6} message="Đang tải danh sách người dùng..." />
+                                    ) : filteredUsers.length > 0 ? (
+                                        filteredUsers.map((user) => (
+                                            <tr key={user._id}>
+                                                <td>{user.name}</td>
+                                                <td>{user.email}</td>
+                                                <td>{user.phone || 'Chưa cập nhật'}</td>
+                                                <td>
+                                                    <span className={cx('role', {
+                                                        'admin': user.role === 'admin',
+                                                        'user': user.role === 'user'
+                                                    })}>
+                                                        {user.role === 'admin' ? 'Quản trị viên' : 'Người dùng'}
+                                                    </span>
+                                                </td>
+                                                <td>{formatDate(user.createdAt)}</td>
+                                                <td>
+                                                    <div className={cx('action-buttons')}>
+                                                        <button
+                                                            className={cx('edit-btn')}
+                                                            onClick={() => handleEditUser(user)}
+                                                            title="Chỉnh sửa"
+                                                        >
+                                                            <i className="fas fa-pencil-alt"></i>
+                                                        </button>
+                                                        <button
+                                                            className={cx('delete-btn')}
+                                                            onClick={() => handleDeleteUser(user._id)}
+                                                            title="Xóa"
+                                                        >
+                                                            <i className="fas fa-trash"></i>
+                                                        </button>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    ) : (
+                                        <tr>
+                                            <td colSpan={6} className={cx('no-data')}>Không tìm thấy người dùng nào</td>
                                         </tr>
-                                    ))}
+                                    )}
                                 </tbody>
                             </table>
                         </div>
-                        
+
                         {/* Hiển thị giao diện mobile */}
                         <div className={cx('user-mobile-list', 'd-block-mobile')}>
-                            {filteredUsers.length > 0 ? (
+                            {loadingUsers ? (
+                                <MobileLoadingBox message="Đang tải danh sách người dùng..." />
+                            ) : filteredUsers.length > 0 ? (
                                 filteredUsers.map((user) => (
                                     <div key={user._id} className={cx('user-mobile-item')}>
                                         <div className={cx('user-mobile-header')}>
@@ -2301,14 +2204,14 @@ function Admin() {
                                         </div>
 
                                         <div className={cx('product-count')}>
-                                            Hiển thị {filteredProducts.length} sản phẩm
+                                            {loadingProducts ? 'Đang tải sản phẩm...' : `Hiển thị ${filteredProducts.length} sản phẩm`}
                                         </div>
                                     </div>
 
-                                    {filteredProducts.length > 0 && (
+                                    {!loadingProducts && filteredProducts.length > 0 && (
                                         <div className={cx('pagination')}>
-                                            <button 
-                                                onClick={handlePrevPage} 
+                                            <button
+                                                onClick={handlePrevPage}
                                                 disabled={currentPage === 1}
                                                 className={cx('pagination-btn')}
                                             >
@@ -2317,7 +2220,7 @@ function Admin() {
                                             <span className={cx('pagination-info')}>
                                                 Trang {currentPage} / {getTotalPages()}
                                             </span>
-                                            <button 
+                                            <button
                                                 onClick={handleNextPage}
                                                 disabled={currentPage >= getTotalPages()}
                                                 className={cx('pagination-btn')}
@@ -2327,7 +2230,12 @@ function Admin() {
                                         </div>
                                     )}
 
-                                    {filteredProducts.length > 0 ? (
+                                    {loadingProducts ? (
+                                        <div className={cx('products-loading-wrapper')}>
+                                            <div className={cx('table-loading-spinner')}></div>
+                                            <span className={cx('table-loading-text')}>Đang tải danh sách sản phẩm...</span>
+                                        </div>
+                                    ) : filteredProducts.length > 0 ? (
                                         <>
                                             <div className={cx('products-grid')}>
                                                 {getProductsForCurrentPage().map((product) => (
@@ -2349,11 +2257,20 @@ function Admin() {
                                                             </button>
                                                         </div>
                                                         
-                                                        <div className={cx('product-image')}>
-                                                            <img 
-                                                                src={product.images?.[0]?.url || 'https://via.placeholder.com/300x300?text=No+Image'} 
-                                                                alt={product.name} 
+                                                        <div
+                                                            className={cx('product-image')}
+                                                            onClick={() => handleOpenLightbox(product, 0)}
+                                                            title="Ấn để xem ảnh to hơn"
+                                                            role="button"
+                                                            tabIndex={0}
+                                                        >
+                                                            <img
+                                                                src={product.images?.[0]?.url || 'https://via.placeholder.com/300x300?text=No+Image'}
+                                                                alt={product.name}
                                                             />
+                                                            <div className={cx('product-img-zoom-hint')}>
+                                                                <i className="fas fa-search-plus" />
+                                                            </div>
                                                         </div>
                                                         
                                                         <div className={cx('product-info')}>
@@ -2441,22 +2358,22 @@ function Admin() {
                                 
                                 {/* Hiển thị bảng trên màn hình lớn */}
                                 <div className={cx('conversations-table-container', 'd-none-mobile')}>
-                                    {chatLoading ? (
-                                        <div className={cx('loading')}>Đang tải dữ liệu...</div>
-                                    ) : filteredConversations.length > 0 ? (
-                                        <table className={cx('conversations-table')}>
-                                            <thead>
-                                                <tr>
-                                                    <th>Người dùng</th>
-                                                    <th>Email</th>
-                                                    <th>Tin nhắn cuối</th>
-                                                    <th>Cập nhật</th>
-                                                    <th>Tin nhắn chưa đọc</th>
-                                                    <th>Thao tác</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody>
-                                                {filteredConversations.map((conversation) => (
+                                    <table className={cx('conversations-table')}>
+                                        <thead>
+                                            <tr>
+                                                <th>Người dùng</th>
+                                                <th>Email</th>
+                                                <th>Tin nhắn cuối</th>
+                                                <th>Cập nhật</th>
+                                                <th>Tin nhắn chưa đọc</th>
+                                                <th>Thao tác</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {chatLoading ? (
+                                                <TableLoadingRow colSpan={6} message="Đang tải cuộc hội thoại..." />
+                                            ) : filteredConversations.length > 0 ? (
+                                                filteredConversations.map((conversation) => (
                                                     <tr key={conversation._id}>
                                                         <td>{conversation.userName || 'Khách'}</td>
                                                         <td>{conversation.userEmail || 'Không có email'}</td>
@@ -2469,14 +2386,14 @@ function Admin() {
                                                         </td>
                                                         <td>
                                                             <div className={cx('action-buttons')}>
-                                                                <button 
+                                                                <button
                                                                     className={cx('view-btn')}
                                                                     onClick={() => handleSelectConversation(conversation)}
                                                                     title="Xem cuộc hội thoại"
                                                                 >
                                                                     <FontAwesomeIcon icon={faEye} />
                                                                 </button>
-                                                                <button 
+                                                                <button
                                                                     className={cx('delete-btn')}
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
@@ -2489,18 +2406,20 @@ function Admin() {
                                                             </div>
                                                         </td>
                                                     </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    ) : (
-                                        <div className={cx('no-data')}>Không tìm thấy cuộc hội thoại nào</div>
-                                    )}
+                                                ))
+                                            ) : (
+                                                <tr>
+                                                    <td colSpan={6} className={cx('no-data')}>Không tìm thấy cuộc hội thoại nào</td>
+                                                </tr>
+                                            )}
+                                        </tbody>
+                                    </table>
                                 </div>
-                                
+
                                 {/* Hiển thị giao diện mobile */}
                                 <div className={cx('conversation-mobile-list', 'd-block-mobile')}>
                                     {chatLoading ? (
-                                        <div className={cx('loading')}>Đang tải dữ liệu...</div>
+                                        <MobileLoadingBox message="Đang tải cuộc hội thoại..." />
                                     ) : filteredConversations.length > 0 ? (
                                         filteredConversations.map((conversation) => (
                                             <div key={conversation._id} className={cx('conversation-mobile-item')}>
@@ -2637,14 +2556,36 @@ function Admin() {
 
     const renderSidebar = () => {
         return (
-            <div className={cx('sidebar', { 'sidebar-closed': !isSidebarOpen })}>
-                <button 
-                    className={cx('close-sidebar-btn')} 
-                    onClick={toggleSidebar}
-                    aria-label="Đóng menu"
+            <>
+                {/* Backdrop mờ phía sau trên mobile khi sidebar mở */}
+                <div
+                    className={cx('sidebar-backdrop', { 'backdrop-open': isSidebarOpen })}
+                    onClick={() => setIsSidebarOpen(false)}
+                    aria-hidden="true"
+                />
+
+                <aside
+                    className={cx('sidebar', { 'sidebar-closed': !isSidebarOpen })}
+                    aria-label="Thanh điều hướng quản trị"
                 >
-                    <FontAwesomeIcon icon={faTimes} />
-                </button>
+                    {/* Header đóng menu chỉ hiển thị trên mobile */}
+                    <div className={cx('sidebar-mobile-header')}>
+                        <span className={cx('sidebar-mobile-title')}>
+                            Menu Quản trị
+                        </span>
+                        <button
+                            type="button"
+                            className={cx('close-sidebar-btn')}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                setIsSidebarOpen(false);
+                            }}
+                            aria-label="Đóng menu"
+                        >
+                            <FontAwesomeIcon icon={faTimes} />
+                        </button>
+                    </div>
                 <ul className={cx('sidebar-menu')}>
                     <li className={cx('sidebar-item')}>
                         <a 
@@ -2692,18 +2633,22 @@ function Admin() {
                         </a>
                     </li>
                     <li className={cx('sidebar-item')}>
-                        <a 
+                        <a
                             className={cx('sidebar-link')}
-                            onClick={() => navigate('/')}
+                            onClick={() => {
+                                if (window.innerWidth <= 768) setIsSidebarOpen(false);
+                                navigate('/');
+                            }}
                         >
                             <i className="fas fa-home"></i>
                             <span className={cx('sidebar-text')}>Trang chủ</span>
                         </a>
                     </li>
                     <li className={cx('sidebar-item')}>
-                        <a 
+                        <a
                             className={cx('sidebar-link')}
                             onClick={() => {
+                                if (window.innerWidth <= 768) setIsSidebarOpen(false);
                                 localStorage.removeItem('token');
                                 navigate('/login');
                             }}
@@ -2713,8 +2658,9 @@ function Admin() {
                         </a>
                     </li>
                 </ul>
-            </div>
-        );
+            </aside>
+        </>
+    );
     };
 
     const formatChatTime = (dateString) => {
@@ -2816,200 +2762,53 @@ function Admin() {
                 
                 {renderContent()}
             </div>
-            {/* Modal chỉnh sửa sản phẩm */}
-            {showEditForm && editingProduct && (
-                <div className={cx('product-edit-modal')}>
-                    <div className={cx('modal-content')}>
-                        <div className={cx('modal-header')}>
-                            <h3>Chỉnh sửa sản phẩm</h3>
-                            <button 
-                                className={cx('close-btn')}
-                                onClick={() => {
-                                    setShowEditForm(false);
-                                    setEditingProduct(null);
-                                    setProductImages([]);
-                                }}
-                            >
-                                <i className="fas fa-times"></i>
-                            </button>
-                        </div>
-                        
-                        <div className={cx('modal-body')}>
-                            <div className={cx('form-group')}>
-                                <label>Tên sản phẩm *</label>
-                                <input
-                                    type="text"
-                                    value={editingProduct.name}
-                                    onChange={(e) => setEditingProduct({...editingProduct, name: e.target.value})}
-                                    placeholder="Nhập tên sản phẩm"
-                                />
-                            </div>
-                            
-                            <div className={cx('form-group')}>
-                                <label>Mô tả</label>
-                                <textarea
-                                    value={editingProduct.description || ''}
-                                    onChange={(e) => setEditingProduct({...editingProduct, description: e.target.value})}
-                                    placeholder="Nhập mô tả sản phẩm"
-                                    rows={4}
-                                />
-                            </div>
-                            
-                            <div className={cx('form-row')}>
-                                <div className={cx('form-group')}>
-                                    <label>Giá (VNĐ) *</label>
-                                    <input
-                                        type="number"
-                                        value={editingProduct.price}
-                                        onChange={(e) => setEditingProduct({...editingProduct, price: e.target.value})}
-                                        placeholder="Nhập giá sản phẩm"
-                                    />
-                                </div>
-                                
-                                <div className={cx('form-group')}>
-                                    <label>Số lượng</label>
-                                    <input
-                                        type="number"
-                                        value={editingProduct.stock || 1}
-                                        onChange={(e) => setEditingProduct({...editingProduct, stock: e.target.value})}
-                                        placeholder="Nhập số lượng"
-                                    />
-                                </div>
-                            </div>
-                            
-                            <div className={cx('form-row')}>
-                                <div className={cx('form-group')}>
-                                    <label>Thương hiệu</label>
-                                    <input
-                                        type="text"
-                                        value={editingProduct.brand || ''}
-                                        onChange={(e) => setEditingProduct({...editingProduct, brand: e.target.value})}
-                                        placeholder="Nhập thương hiệu"
-                                    />
-                                </div>
-                                
-                                <div className={cx('form-group')}>
-                                    <label>Loại sản phẩm</label>
-                                    <select
-                                        value={editingProduct.category || ''}
-                                        onChange={(e) => setEditingProduct({...editingProduct, category: e.target.value})}
-                                    >
-                                        <option value="">Chọn loại sản phẩm</option>
-                                        <option value="shirt">Áo</option>
-                                        <option value="pants">Quần</option>
-                                        <option value="shoes">Giày</option>
-                                        <option value="accessories">Phụ kiện</option>
-                                    </select>
-                                </div>
-                            </div>
-                            
-                            <div className={cx('form-row')}>
-                                <div className={cx('form-group')}>
-                                    <label>Giới tính</label>
-                                    <select
-                                        value={editingProduct.gioiTinh || ''}
-                                        onChange={(e) => setEditingProduct({...editingProduct, gioiTinh: e.target.value})}
-                                    >
-                                        <option value="">Chọn giới tính</option>
-                                        <option value="Nam">Nam</option>
-                                        <option value="Nữ">Nữ</option>
-                                        <option value="Unisex">Unisex</option>
-                                    </select>
-                                </div>
-                                
-                                <div className={cx('form-group')}>
-                                    <label>Màu sắc</label>
-                                    <input
-                                        type="text"
-                                        value={editingProduct.mauSac || ''}
-                                        onChange={(e) => setEditingProduct({...editingProduct, mauSac: e.target.value})}
-                                        placeholder="Nhập màu sắc"
-                                    />
-                                </div>
-                            </div>
-                            
-                            <div className={cx('form-row')}>
-                                <div className={cx('form-group')}>
-                                    <label>Kiểu dáng</label>
-                                    <input
-                                        type="text"
-                                        value={editingProduct.kieuDang || ''}
-                                        onChange={(e) => setEditingProduct({...editingProduct, kieuDang: e.target.value})}
-                                        placeholder="Nhập kiểu dáng"
-                                    />
-                                </div>
-                                
-                                <div className={cx('form-group')}>
-                                    <label>Chất liệu</label>
-                                    <input
-                                        type="text"
-                                        value={editingProduct.chatLieu || ''}
-                                        onChange={(e) => setEditingProduct({...editingProduct, chatLieu: e.target.value})}
-                                        placeholder="Nhập chất liệu"
-                                    />
-                                </div>
-                            </div>
-                            
-                            <div className={cx('form-row')}>
-                                <div className={cx('form-group')}>
-                                    <label>Xuất xứ</label>
-                                    <input
-                                        type="text"
-                                        value={editingProduct.xuatXu || ''}
-                                        onChange={(e) => setEditingProduct({...editingProduct, xuatXu: e.target.value})}
-                                        placeholder="Nhập xuất xứ"
-                                    />
-                                </div>
-                                
-                                <div className={cx('form-group')}>
-                                    <label>Size</label>
-                                    <input
-                                        type="text"
-                                        value={editingProduct.size || ''}
-                                        onChange={(e) => setEditingProduct({...editingProduct, size: e.target.value})}
-                                        placeholder="Nhập size"
-                                    />
-                                </div>
-                            </div>
-                            
-                            <div className={cx('form-group')}>
-                                <label>Hình ảnh hiện tại</label>
-                                <div className={cx('current-images')}>
-                                    {editingProduct.images && editingProduct.images.length > 0 ? (
-                                        editingProduct.images.map((image, index) => (
-                                            <div key={index} className={cx('image-item')}>
-                                                <img src={image.url} alt={`Sản phẩm ${index + 1}`} />
-                                            </div>
-                                        ))
-                                    ) : (
-                                        <p>Không có hình ảnh</p>
-                                    )}
-                                </div>
-                            </div>
-                            
-                            <div className={cx('form-group')}>
-                                <label>Thêm hình ảnh mới</label>
-                                <input
-                                    type="file"
-                                    multiple
-                                    onChange={handleImageChange}
-                                    accept="image/*"
-                                    disabled={isUploadingImages}
-                                />
-                                {isUploadingImages && <p style={{ color: '#D4AF37', fontSize: '13px', margin: '6px 0' }}>Đang tải ảnh lên Cloudflare R2...</p>}
-                                <small>Có thể chọn nhiều hình ảnh. Nếu thêm hình ảnh mới, các hình ảnh cũ sẽ bị thay thế.</small>
-                            </div>
-                        </div>
-
-                        <div className={cx('modal-footer')}>
+            {/* Bảng QuickView chỉnh sửa nhanh sản phẩm (Desktop trượt từ phải sang trái, Mobile trượt từ dưới lên) */}
+            <QuickView
+                isOpen={showEditForm && !!editingProduct}
+                onClose={() => {
+                    setShowEditForm(false);
+                    setEditingProduct(null);
+                    setProductImages([]);
+                }}
+                title="Chỉnh sửa nhanh"
+                subtitle={`${editingProduct?.brand ? editingProduct.brand + ' • ' : ''}${editingProduct?.code || ''}`}
+                width="560px"
+                extraHeader={
+                    <button
+                        type="button"
+                        className={cx('quickview-open-detail-btn')}
+                        onClick={() => {
+                            const prodId = editingProduct?._id;
+                            setShowEditForm(false);
+                            setEditingProduct(null);
+                            setProductImages([]);
+                            navigate(`/admin/product/${prodId}`);
+                        }}
+                        title="Mở trang chỉnh sửa chi tiết toàn diện"
+                    >
+                        <i className="fas fa-external-link-alt" />
+                        <span>Chỉnh sửa chi tiết</span>
+                    </button>
+                }
+                footer={
+                    <div className={cx('quickview-footer-wrapper')}>
+                        <button
+                            type="button"
+                            className={cx('quickview-full-detail-link')}
+                            onClick={() => {
+                                const prodId = editingProduct?._id;
+                                setShowEditForm(false);
+                                setEditingProduct(null);
+                                setProductImages([]);
+                                navigate(`/admin/product/${prodId}`);
+                            }}
+                        >
+                            <i className="fas fa-edit" />
+                            <span>Mở trang chi tiết</span>
+                        </button>
+                        <div className={cx('quickview-action-group')}>
                             <button
-                                className={cx('save-btn')}
-                                onClick={handleUpdateProduct}
-                                disabled={isUploadingImages}
-                            >
-                                {isUploadingImages ? 'Đang tải ảnh...' : 'Cập nhật sản phẩm'}
-                            </button>
-                            <button 
+                                type="button"
                                 className={cx('cancel-btn')}
                                 onClick={() => {
                                     setShowEditForm(false);
@@ -3017,12 +2816,390 @@ function Admin() {
                                     setProductImages([]);
                                 }}
                             >
-                                Hủy bỏ
+                                Đóng
+                            </button>
+                            <button
+                                type="button"
+                                className={cx('save-btn')}
+                                onClick={handleUpdateProduct}
+                                disabled={isUploadingImages}
+                            >
+                                <i className={`fas ${isUploadingImages ? 'fa-spinner fa-spin' : 'fa-check'}`} />
+                                {isUploadingImages ? 'Đang tải ảnh...' : 'Lưu nhanh'}
                             </button>
                         </div>
                     </div>
-                </div>
-            )}
+                }
+            >
+                {editingProduct && (
+                    <div className={cx('quick-edit-form')}>
+                        {/* Ảnh xem trước & nút upload R2 nhanh */}
+                        <div className={cx('quick-image-box')}>
+                            <div
+                                className={cx('quick-img-thumb')}
+                                onClick={() => handleOpenLightbox(editingProduct, 0)}
+                                title="Ấn để xem ảnh to hơn"
+                                role="button"
+                                tabIndex={0}
+                            >
+                                <img
+                                    src={editingProduct.images?.[0]?.url || 'https://via.placeholder.com/120'}
+                                    alt={editingProduct.name}
+                                />
+                                <div className={cx('quick-img-zoom-hint')}>
+                                    <i className="fas fa-search-plus" />
+                                </div>
+                                {editingProduct.images && editingProduct.images.length > 1 && (
+                                    <span className={cx('quick-img-count')}>
+                                        +{editingProduct.images.length - 1} ảnh
+                                    </span>
+                                )}
+                            </div>
+                            <div className={cx('quick-img-meta')}>
+                                <div className={cx('quick-img-header')}>
+                                    <span className={cx('quick-r2-tag')}>
+                                        <i className="fas fa-bolt" /> Cloudflare R2
+                                    </span>
+                                    <span className={cx('quick-img-total')}>
+                                        {editingProduct.images?.length || 0} ảnh
+                                    </span>
+                                </div>
+                                <label className={cx('quick-upload-label')}>
+                                    <input
+                                        type="file"
+                                        multiple
+                                        onChange={handleImageChange}
+                                        accept="image/*"
+                                        disabled={isUploadingImages}
+                                        className={cx('quick-file-input')}
+                                    />
+                                    <span className={cx('quick-upload-btn-styled')}>
+                                        <i className={`fas ${isUploadingImages ? 'fa-spinner fa-spin' : 'fa-cloud-upload-alt'}`} />
+                                        {isUploadingImages ? 'Đang tải lên R2...' : 'Tải thêm ảnh lên R2'}
+                                    </span>
+                                </label>
+                            </div>
+                        </div>
+
+                        {/* Tên sản phẩm */}
+                        <div className={cx('form-group')}>
+                            <label>Tên sản phẩm *</label>
+                            <input
+                                type="text"
+                                value={editingProduct.name}
+                                onChange={(e) => setEditingProduct({ ...editingProduct, name: e.target.value })}
+                                placeholder="Nhập tên sản phẩm"
+                            />
+                        </div>
+
+                        {/* Giá & Số lượng */}
+                        <div className={cx('form-row')}>
+                            <div className={cx('form-group')}>
+                                <label>Giá (VNĐ) *</label>
+                                <input
+                                    type="number"
+                                    value={editingProduct.price}
+                                    onChange={(e) => setEditingProduct({ ...editingProduct, price: Number(e.target.value) })}
+                                    placeholder="Nhập giá"
+                                />
+                            </div>
+
+                            <div className={cx('form-group')}>
+                                <label>Số lượng trong kho</label>
+                                <input
+                                    type="number"
+                                    value={editingProduct.stock ?? 1}
+                                    onChange={(e) => setEditingProduct({ ...editingProduct, stock: Number(e.target.value) })}
+                                    placeholder="Nhập số lượng"
+                                    min={0}
+                                />
+                            </div>
+                        </div>
+
+                        {/* Thương hiệu & Loại sản phẩm */}
+                        <div className={cx('form-row')}>
+                            <div className={cx('form-group')}>
+                                <label>Thương hiệu</label>
+                                <input
+                                    type="text"
+                                    value={editingProduct.brand || ''}
+                                    onChange={(e) => setEditingProduct({ ...editingProduct, brand: e.target.value })}
+                                    placeholder="PRADA, GUCCI..."
+                                />
+                            </div>
+
+                            <div className={cx('form-group')}>
+                                <label>Loại sản phẩm</label>
+                                <select
+                                    value={editingProduct.category || ''}
+                                    onChange={(e) => setEditingProduct({ ...editingProduct, category: e.target.value })}
+                                >
+                                    <option value="">Chọn loại</option>
+                                    <option value="shirt">Áo</option>
+                                    <option value="pants">Quần</option>
+                                    <option value="shoes">Giày</option>
+                                    <option value="accessories">Phụ kiện</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Giới tính & Màu sắc */}
+                        <div className={cx('form-row')}>
+                            <div className={cx('form-group')}>
+                                <label>Giới tính</label>
+                                <select
+                                    value={editingProduct.gioiTinh || ''}
+                                    onChange={(e) => setEditingProduct({ ...editingProduct, gioiTinh: e.target.value })}
+                                >
+                                    <option value="Nam">Nam</option>
+                                    <option value="Nữ">Nữ</option>
+                                    <option value="Unisex">Unisex</option>
+                                </select>
+                            </div>
+
+                            <div className={cx('form-group')}>
+                                <label>Màu sắc</label>
+                                <input
+                                    type="text"
+                                    value={editingProduct.mauSac || ''}
+                                    onChange={(e) => setEditingProduct({ ...editingProduct, mauSac: e.target.value })}
+                                    placeholder="Màu sắc"
+                                />
+                            </div>
+                        </div>
+
+                        {/* Size & Chất liệu */}
+                        <div className={cx('form-row')}>
+                            <div className={cx('form-group')}>
+                                <label>Size</label>
+                                <input
+                                    type="text"
+                                    value={editingProduct.size || ''}
+                                    onChange={(e) => setEditingProduct({ ...editingProduct, size: e.target.value })}
+                                    placeholder="S, M, L, XL..."
+                                />
+                            </div>
+
+                            <div className={cx('form-group')}>
+                                <label>Chất liệu</label>
+                                <input
+                                    type="text"
+                                    value={editingProduct.chatLieu || ''}
+                                    onChange={(e) => setEditingProduct({ ...editingProduct, chatLieu: e.target.value })}
+                                    placeholder="Cotton, Denim..."
+                                />
+                            </div>
+                        </div>
+
+                        {/* Mô tả ngắn */}
+                        <div className={cx('form-group')}>
+                            <label>Mô tả sản phẩm</label>
+                            <textarea
+                                value={editingProduct.description || ''}
+                                onChange={(e) => setEditingProduct({ ...editingProduct, description: e.target.value })}
+                                placeholder="Nhập mô tả sản phẩm..."
+                                rows={3}
+                            />
+                        </div>
+                    </div>
+                )}
+            </QuickView>
+
+            {/* Bảng QuickView xem chi tiết đơn hàng / hóa đơn (Desktop trượt từ phải sang trái, Mobile trượt từ dưới lên) */}
+            <QuickView
+                isOpen={showInvoiceModal && !!selectedInvoice}
+                onClose={() => {
+                    setShowInvoiceModal(false);
+                    setSelectedInvoice(null);
+                }}
+                title={`Chi tiết đơn hàng #${selectedInvoice?._id ? selectedInvoice._id.slice(-6).toUpperCase() : ''}`}
+                subtitle={selectedInvoice?.createdAt ? `Đặt lúc: ${formatDate(selectedInvoice.createdAt)}` : ''}
+                width="640px"
+                extraHeader={
+                    selectedInvoice && (
+                        <span
+                            className={cx('status', 'quickview-order-status-badge', {
+                                'pending': selectedInvoice.orderStatus === 'Processing',
+                                'processing': selectedInvoice.orderStatus === 'Processing',
+                                'shipped': selectedInvoice.orderStatus === 'Shipped',
+                                'delivered': selectedInvoice.orderStatus === 'Delivered',
+                                'cancelled': selectedInvoice.orderStatus === 'Cancelled',
+                            })}
+                        >
+                            {getStatusVietnamese(selectedInvoice.orderStatus)}
+                        </span>
+                    )
+                }
+                footer={
+                    <div className={cx('quickview-invoice-footer')}>
+                        {selectedInvoice && selectedInvoice.orderStatus !== 'Delivered' && selectedInvoice.orderStatus !== 'Cancelled' && (
+                            <button
+                                type="button"
+                                className={cx('cancel-order-btn')}
+                                onClick={() => handleCancelOrder(selectedInvoice._id)}
+                            >
+                                <i className="fas fa-ban" />
+                                <span>Hủy đơn hàng</span>
+                            </button>
+                        )}
+                        <button
+                            type="button"
+                            className={cx('delete-order-btn')}
+                            onClick={() => {
+                                handleRemoveOrder(selectedInvoice._id);
+                            }}
+                        >
+                            <i className="fas fa-trash" />
+                            <span>Xóa đơn hàng</span>
+                        </button>
+                        <button
+                            type="button"
+                            className={cx('close-modal-btn')}
+                            onClick={() => {
+                                setShowInvoiceModal(false);
+                                setSelectedInvoice(null);
+                            }}
+                        >
+                            Đóng
+                        </button>
+                    </div>
+                }
+            >
+                {selectedInvoice && (
+                    <div className={cx('quickview-invoice-body')}>
+                        {/* Thẻ 1: Thông tin khách hàng & giao hàng */}
+                        <div className={cx('invoice-section-card')}>
+                            <div className={cx('invoice-section-header')}>
+                                <h4>
+                                    <i className="fas fa-user-circle" />
+                                    <span>Thông tin khách hàng & Giao hàng</span>
+                                </h4>
+                            </div>
+                            <div className={cx('invoice-info-grid')}>
+                                <div className={cx('invoice-info-item')}>
+                                    <span className={cx('info-label')}>Họ tên</span>
+                                    <span className={cx('info-value')}>{selectedInvoice.shippingInfo?.fullName || 'Chưa cập nhật'}</span>
+                                </div>
+                                <div className={cx('invoice-info-item')}>
+                                    <span className={cx('info-label')}>Số điện thoại</span>
+                                    <span className={cx('info-value')}>{selectedInvoice.shippingInfo?.phoneNo || 'Chưa cập nhật'}</span>
+                                </div>
+                                <div className={cx('invoice-info-item')}>
+                                    <span className={cx('info-label')}>Email</span>
+                                    <span className={cx('info-value')}>{selectedInvoice.user?.email || 'Chưa cập nhật'}</span>
+                                </div>
+                                <div className={cx('invoice-info-item')}>
+                                    <span className={cx('info-label')}>Phương thức TT</span>
+                                    <span className={cx('info-value')}>
+                                        {selectedInvoice.paymentMethod === 'Banking'
+                                            ? 'Chuyển khoản ngân hàng'
+                                            : 'Thanh toán khi nhận hàng (COD)'}
+                                    </span>
+                                </div>
+                                <div className={cx('invoice-info-item', 'full-width')}>
+                                    <span className={cx('info-label')}>Địa chỉ nhận hàng</span>
+                                    <span className={cx('info-value')}>
+                                        {[selectedInvoice.shippingInfo?.address, selectedInvoice.shippingInfo?.city]
+                                            .filter(Boolean)
+                                            .join(', ') || 'Chưa cập nhật'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Thẻ 2: Chi tiết sản phẩm trong đơn */}
+                        <div className={cx('invoice-section-card')}>
+                            <div className={cx('invoice-section-header')}>
+                                <h4>
+                                    <i className="fas fa-box-open" />
+                                    <span>Sản phẩm trong đơn ({selectedInvoice.orderItems?.length || 0})</span>
+                                </h4>
+                            </div>
+                            <div className={cx('invoice-items-list')}>
+                                {selectedInvoice.orderItems && selectedInvoice.orderItems.length > 0 ? (
+                                    selectedInvoice.orderItems.map((item, index) => {
+                                        const itemImg = item.images?.[0]?.url || item.image || item.imageUrl || 'https://via.placeholder.com/60';
+                                        return (
+                                            <div key={index} className={cx('invoice-item-row')}>
+                                                <div
+                                                    className={cx('invoice-item-thumb')}
+                                                    onClick={() => {
+                                                        if (itemImg) {
+                                                            handleOpenLightbox({
+                                                                name: item.name,
+                                                                images: item.images?.length ? item.images : [{ url: itemImg }]
+                                                            }, 0);
+                                                        }
+                                                    }}
+                                                    title="Ấn để xem ảnh to hơn"
+                                                    role="button"
+                                                    tabIndex={0}
+                                                >
+                                                    <img src={itemImg} alt={item.name} />
+                                                </div>
+                                                <div className={cx('invoice-item-info')}>
+                                                    <h5 className={cx('invoice-item-name')} title={item.name}>
+                                                        {item.name}
+                                                    </h5>
+                                                    <div className={cx('invoice-item-meta')}>
+                                                        <span className={cx('qty-badge')}>SL: {item.quantity}</span>
+                                                        <span className={cx('unit-price')}>Đơn giá: {formatCurrency(item.price)}</span>
+                                                    </div>
+                                                </div>
+                                                <div className={cx('invoice-item-price')}>
+                                                    <div className={cx('item-total')}>
+                                                        {formatCurrency(item.price * item.quantity)}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })
+                                ) : (
+                                    <div className={cx('no-data')}>Không có sản phẩm nào</div>
+                                )}
+                            </div>
+                        </div>
+
+                        {/* Thẻ 3: Tóm tắt thanh toán */}
+                        <div className={cx('invoice-section-card')}>
+                            <div className={cx('invoice-section-header')}>
+                                <h4>
+                                    <i className="fas fa-receipt" />
+                                    <span>Tóm tắt thanh toán</span>
+                                </h4>
+                            </div>
+                            <div className={cx('invoice-summary-box')}>
+                                <div className={cx('summary-line')}>
+                                    <span>Tổng tiền hàng:</span>
+                                    <span>{formatCurrency(selectedInvoice.itemsPrice || 0)}</span>
+                                </div>
+                                <div className={cx('summary-line')}>
+                                    <span>Phí vận chuyển:</span>
+                                    <span>{formatCurrency(selectedInvoice.shippingPrice || 0)}</span>
+                                </div>
+                                <div className={cx('summary-line')}>
+                                    <span>Thuế VAT:</span>
+                                    <span>{formatCurrency(selectedInvoice.taxPrice || 0)}</span>
+                                </div>
+                                <div className={cx('summary-line', 'divider', 'grand-total')}>
+                                    <span>Tổng thanh toán:</span>
+                                    <span>{formatCurrency(selectedInvoice.totalPrice || 0)}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
+            </QuickView>
+
+            {/* Modal phóng to ảnh Lightbox */}
+            <ImageLightbox
+                isOpen={lightboxOpen}
+                onClose={() => setLightboxOpen(false)}
+                images={lightboxImages}
+                initialIndex={lightboxIndex}
+                title={lightboxTitle}
+                subtitle={lightboxSubtitle}
+            />
         </div>
     );
 }
